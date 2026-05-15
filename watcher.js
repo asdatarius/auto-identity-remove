@@ -139,7 +139,10 @@ function openInBrowser(urls) {
 
 async function solveRecaptcha(page) {
   const key = capsolver?.apiKey;
-  if (!key || key.startsWith('CAP-YOUR')) return false;
+  if (!key || key.startsWith('CAP-YOUR') || key === 'CAP-YOUR_KEY_HERE') {
+    console.log('     ℹ  No CapSolver key — add one to config.json to auto-solve CAPTCHAs');
+    return false;
+  }
 
   try {
     const axios  = require('axios');

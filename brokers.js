@@ -160,11 +160,12 @@ module.exports = [
   {
     name: 'CheckPeople',
     method: 'direct-form',
-    optOutUrl: 'https://checkpeople.com/opt-out',
+    // Their /opt-out page redirects — use the search-based removal flow instead
+    optOutUrl: `https://checkpeople.com/opt-out?firstName=${enc(F)}&lastName=${enc(L)}&state=${ST}`,
     formFields: { 'input[name*="first" i]': F, 'input[name*="last" i]': L, 'input[type="email"]': E, 'select[name*="state" i]': ST },
     submitSelector: 'button[type="submit"]',
     captchaLikely: false,
-    priority: 1,
+    priority: 2,
   },
 
   // ═══ Priority 2 — Additional people-search sites ══════════════════════════
