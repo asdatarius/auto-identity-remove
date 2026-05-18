@@ -42,6 +42,7 @@ let state = fs.existsSync(STATE_PATH)
   : { optOuts: {} };
 
 const RECHECK_DAYS = 90; // how often to re-submit to a broker
+const DRY_RUN = process.argv.includes('--dry-run');
 
 function saveState() {
   fs.writeFileSync(STATE_PATH, JSON.stringify(state, null, 2));
@@ -303,7 +304,12 @@ async function processBroker(context, broker) {
       }
     }
 
-    // Step 5: submit
+    // Step 5: submit (skipped in dry-run mode)
+    if (DRY_RUN) {
+      logResult(broker.name, 'skipped', 'dry-run — form filled but not submitted');
+      await page.close();
+      return;
+    }
     if (broker.submitSelector) {
       const btn = page.locator(broker.submitSelector).first();
       if ((await btn.count()) > 0 && (await btn.isVisible())) {
@@ -396,6 +402,7 @@ async function main() {
   const { runGenericBrokers } = require('./generic-runner');
 
   console.log('\n🔒 auto-identity-remove — starting run');
+  if (DRY_RUN) console.log('🧪 DRY RUN — forms will be filled but NOT submitted. No state will be saved.');
   console.log(`📅 ${new Date().toLocaleString()}`);
   console.log(`📋 ${brokers.length} explicit brokers + 500+ generic | re-check window: ${RECHECK_DAYS} days\n`);
 
@@ -436,8 +443,8 @@ async function main() {
 
   await context.close().catch(() => {});
 
-  // Save run log
-  fs.writeFileSync(logFile, JSON.stringify(results, null, 2));
+  // Save run log (skipped in dry-run)
+  if (!DRY_RUN) fs.writeFileSync(logFile, JSON.stringify(results, null, 2));
 
   // Open manual-required sites
   const manualUrls = [...results.captchaFailed, ...results.manual]

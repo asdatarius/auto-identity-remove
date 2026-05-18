@@ -216,6 +216,12 @@ PRs welcome — especially for brokers with verified working selectors.
 ./run.sh
 ```
 
+**Dry-run mode** — navigates to each site and fills forms but does NOT submit anything. Good for verifying what the script will do before your first real run:
+
+```bash
+node watcher.js --dry-run
+```
+
 Or to run in the background and log output:
 
 ```bash
@@ -230,6 +236,31 @@ Or to run in the background and log output:
 launchctl unload ~/Library/LaunchAgents/com.auto-identity-remove.plist
 rm ~/Library/LaunchAgents/com.auto-identity-remove.plist
 ```
+
+---
+
+## Is it safe to submit my info to 500 opt-out forms?
+
+A fair concern raised by some users: aren't you just confirming your data to the brokers by filling out their forms?
+
+A few things worth knowing:
+
+- **These brokers already have your info.** You're not revealing anything new — you're using the legally-required removal mechanism they're obligated to provide.
+- **CCPA (California) and similar state laws require brokers to honor opt-out requests.** Submitting the form creates a legal obligation to remove you. Doing nothing does not.
+- **The script uses info you're already listed under** — your name as it appears publicly, your state, your email. It doesn't add new data points.
+- **The alternative is worse.** Every month that passes, more brokers scrape and resell your data. Opt-outs are imperfect, but they work more often than not.
+
+That said: if you're in a situation where even confirming your email address to a broker is a risk, this tool is not the right approach. Consider a paid service that uses a proxy email.
+
+---
+
+## California residents: DELETE Registry (August 2025)
+
+California is launching an official **Delete Me** opt-out registry on August 1, 2025. Once registered, data brokers are legally required to delete your info automatically — no individual form submissions needed for participating brokers.
+
+Register at: **[optoutregistry.oag.ca.gov](https://optoutregistry.oag.ca.gov)** (live August 1)
+
+**Recommended:** Register with the CA Delete Registry first, then run this script for the brokers that aren't covered.
 
 ---
 

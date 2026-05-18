@@ -196,6 +196,7 @@ async function main() {
 </dict>
 </plist>`;
 
+    fs.mkdirSync(path.dirname(PLIST_PATH), { recursive: true });
     fs.writeFileSync(PLIST_PATH, plist);
     try {
       execSync(`launchctl unload "${PLIST_PATH}" 2>/dev/null; launchctl load "${PLIST_PATH}"`);
