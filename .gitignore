@@ -4,3 +4,4 @@ state.json
 logs/
 *.log
 .DS_Store
+.claude/
