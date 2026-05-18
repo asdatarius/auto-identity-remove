@@ -1,6 +1,6 @@
 # auto-identity-remove
 
-Automated data broker opt-out runner for macOS. Removes your personal information from **500+ people-search sites and data broker databases** on a monthly schedule — with CAPTCHA solving, persistent state tracking (so completed opt-outs aren't resubmitted every run), and an iMessage notification when done.
+Automated data broker opt-out runner for macOS, Linux, and Windows. Removes your personal information from **500+ people-search sites and data broker databases** on a monthly schedule — with CAPTCHA solving, persistent state tracking (so completed opt-outs aren't resubmitted every run), and an iMessage notification when done.
 
 ## What it does
 
@@ -18,8 +18,8 @@ Each month, the script:
 
 ## Requirements
 
-- macOS (uses launchd for scheduling and Messages for iMessage)
 - Node.js 18+
+- macOS, Linux, or Windows (scheduling adapts automatically)
 - [Playwright](https://playwright.dev) browsers installed
 
 ```bash
@@ -58,7 +58,7 @@ node setup.js
 | **CapSolver key** | For CAPTCHA-protected opt-out forms |
 | **One-time accounts** | Creates accounts on sites that require login (stored in `config.json`, gitignored) |
 | **iMessage** | Phone number to text the results summary to |
-| **launchd schedule** | Registers a monthly job to run on the 1st at 9am |
+| **Monthly schedule** | Registers a monthly job to run on the 1st at 9am (launchd / systemd / crontab / schtasks — detected automatically) |
 
 **Your personal info never leaves your machine.** `config.json` and `state.json` are both gitignored.
 
@@ -232,10 +232,12 @@ Or to run in the background and log output:
 
 ## Uninstall / disable schedule
 
-```bash
-launchctl unload ~/Library/LaunchAgents/com.auto-identity-remove.plist
-rm ~/Library/LaunchAgents/com.auto-identity-remove.plist
-```
+| Platform | Command |
+|----------|---------|
+| **macOS** (launchd) | `launchctl unload ~/Library/LaunchAgents/com.auto-identity-remove.plist` then `rm ~/Library/LaunchAgents/com.auto-identity-remove.plist` |
+| **Linux** (systemd) | `systemctl --user disable --now auto-identity-remove.timer` then `rm ~/.config/systemd/user/auto-identity-remove.{service,timer}` |
+| **Linux** (crontab fallback) | Run `crontab -e` and delete the `auto-identity-remove` line |
+| **Windows** (schtasks) | `schtasks /Delete /TN auto-identity-remove /F` |
 
 ---
 

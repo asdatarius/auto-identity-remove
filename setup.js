@@ -18,9 +18,10 @@ const os      = require('os');
 const readline = require('readline');
 const { execSync } = require('child_process');
 
+const { installSchedule } = require('./lib/scheduler');
+
 const CONFIG_PATH = path.join(__dirname, 'config.json');
 const STATE_PATH  = path.join(__dirname, 'state.json');
-const PLIST_PATH  = path.join(os.homedir(), 'Library', 'LaunchAgents', 'com.auto-identity-remove.plist');
 
 // ─── Prompt helper ────────────────────────────────────────────────────────────
 
@@ -155,56 +156,14 @@ async function main() {
     console.log('✅ state.json initialized (tracks opt-out history).\n');
   }
 
-  // ── launchd scheduling ───────────────────────────────────────────────────
+  // ── Cross-platform scheduling ─────────────────────────────────────────────
   console.log('── Monthly Schedule ────────────────────────────────────────');
   const doSchedule = await confirm('Schedule to run automatically on the 1st of every month at 9am?');
   if (doSchedule) {
     const scriptPath = path.join(__dirname, 'run.sh');
-    const logDir = path.join(__dirname, 'logs');
-    fs.mkdirSync(logDir, { recursive: true });
-
-    const plist = `<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>Label</key>
-    <string>com.auto-identity-remove</string>
-    <key>ProgramArguments</key>
-    <array>
-        <string>/bin/bash</string>
-        <string>${scriptPath}</string>
-    </array>
-    <key>StartCalendarInterval</key>
-    <dict>
-        <key>Day</key><integer>1</integer>
-        <key>Hour</key><integer>9</integer>
-        <key>Minute</key><integer>0</integer>
-    </dict>
-    <key>StandardOutPath</key>
-    <string>${logDir}/launchd.log</string>
-    <key>StandardErrorPath</key>
-    <string>${logDir}/launchd.error.log</string>
-    <key>EnvironmentVariables</key>
-    <dict>
-        <key>PLAYWRIGHT_BROWSERS_PATH</key>
-        <string>${process.env.PLAYWRIGHT_BROWSERS_PATH || path.join(os.homedir(), 'Library', 'Caches', 'ms-playwright')}</string>
-        <key>PATH</key>
-        <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
-    </dict>
-    <key>RunAtLoad</key>
-    <false/>
-</dict>
-</plist>`;
-
-    fs.mkdirSync(path.dirname(PLIST_PATH), { recursive: true });
-    fs.writeFileSync(PLIST_PATH, plist);
-    try {
-      execSync(`launchctl unload "${PLIST_PATH}" 2>/dev/null; launchctl load "${PLIST_PATH}"`);
-      console.log('✅ Scheduled — runs every 1st of the month at 9am.\n');
-    } catch(err) {
-      console.log(`⚠  launchctl error: ${err.message.slice(0,80)}`);
-      console.log(`   Manually load with: launchctl load "${PLIST_PATH}"\n`);
-    }
+    const logDir     = path.join(__dirname, 'logs');
+    const result = installSchedule({ scriptPath, logDir });
+    console.log(`✅ [${result.method}] ${result.detail}\n`);
   }
 
   rl.close();
