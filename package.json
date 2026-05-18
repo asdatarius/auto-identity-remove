@@ -16,7 +16,6 @@
   "engines": {
     "node": ">=18.0.0"
   },
-  "os": ["darwin"],
   "keywords": ["privacy", "data-broker", "opt-out", "gdpr", "ccpa", "automation", "playwright"],
   "license": "MIT"
 }
