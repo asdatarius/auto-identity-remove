@@ -330,6 +330,115 @@ module.exports = [
     priority: 1,
   },
 
+  // ═══ Additional people-search / data broker sites ════════════════════════
+
+  {
+    name: 'PeekYou',
+    method: 'direct-form',
+    optOutUrl: 'https://www.peekyou.com/about/contact/optout/',
+    formFields: { 'input[name*="first" i]': F, 'input[name*="last" i]': L, 'input[type="email"]': E, 'input[name*="city" i]': C, 'input[name*="state" i]': ST },
+    submitSelector: 'button[type="submit"],input[type="submit"]',
+    captchaLikely: false,
+    priority: 1,
+  },
+
+  {
+    name: 'Addresses.com',
+    method: 'direct-form',
+    optOutUrl: 'https://www.addresses.com/optout.php',
+    formFields: { 'input[name*="first" i]': F, 'input[name*="last" i]': L, 'input[type="email"]': E },
+    submitSelector: 'button[type="submit"],input[type="submit"]',
+    captchaLikely: false,
+    priority: 2,
+  },
+
+  {
+    name: 'AnyWho',
+    method: 'direct-form',
+    optOutUrl: 'https://www.anywho.com/optout',
+    formFields: { 'input[name*="first" i]': F, 'input[name*="last" i]': L, 'input[type="email"]': E },
+    submitSelector: 'button[type="submit"],input[type="submit"]',
+    captchaLikely: false,
+    priority: 2,
+  },
+
+  {
+    name: 'TruthFinder',
+    method: 'direct-form',
+    optOutUrl: 'https://www.truthfinder.com/opt-out/',
+    formFields: { 'input[name*="first" i]': F, 'input[name*="last" i]': L, 'input[name*="state" i]': ST },
+    submitSelector: 'button[type="submit"]',
+    captchaLikely: false,
+    priority: 1,
+  },
+
+  {
+    name: 'InstantCheckmate',
+    method: 'direct-form',
+    optOutUrl: 'https://www.instantcheckmate.com/opt-out/',
+    formFields: { 'input[name*="first" i]': F, 'input[name*="last" i]': L, 'input[name*="state" i]': ST },
+    submitSelector: 'button[type="submit"]',
+    captchaLikely: false,
+    priority: 1,
+  },
+
+  {
+    name: 'Spokeo (email)',
+    method: 'email',
+    emailTo: 'privacy@spokeo.com',
+    priority: 2,
+  },
+
+  {
+    name: 'Epsilon',
+    method: 'direct-form',
+    optOutUrl: 'https://www.epsilon.com/privacy/data-subject-rights-request',
+    formFields: { 'input[name*="first" i]': F, 'input[name*="last" i]': L, 'input[type="email"]': E },
+    submitSelector: 'button[type="submit"]',
+    captchaLikely: false,
+    priority: 2,
+  },
+
+  {
+    name: 'Oracle Data Cloud',
+    method: 'direct-form',
+    optOutUrl: 'https://datacloudoptout.oracle.com/',
+    formFields: { 'input[type="email"]': E },
+    submitSelector: 'button[type="submit"]',
+    captchaLikely: false,
+    priority: 2,
+  },
+
+  {
+    name: 'Equifax (marketing)',
+    method: 'direct-form',
+    optOutUrl: 'https://www.equifax.com/privacy/opt-out/',
+    formFields: { 'input[name*="first" i]': F, 'input[name*="last" i]': L, 'input[type="email"]': E, 'input[name*="zip" i]': Z },
+    submitSelector: 'button[type="submit"],input[type="submit"]',
+    captchaLikely: false,
+    priority: 2,
+  },
+
+  {
+    name: 'Experian (marketing)',
+    method: 'direct-form',
+    optOutUrl: 'https://www.experian.com/privacy/opting_out.html',
+    formFields: { 'input[name*="first" i]': F, 'input[name*="last" i]': L, 'input[name*="addr" i]': C, 'input[name*="zip" i]': Z },
+    submitSelector: 'button[type="submit"],input[type="submit"]',
+    captchaLikely: false,
+    priority: 2,
+  },
+
+  {
+    name: 'DataAxle',
+    method: 'direct-form',
+    optOutUrl: 'https://www.data-axle.com/privacy-policy/#optout',
+    formFields: { 'input[name*="first" i]': F, 'input[name*="last" i]': L, 'input[type="email"]': E, 'input[name*="zip" i]': Z },
+    submitSelector: 'button[type="submit"]',
+    captchaLikely: false,
+    priority: 2,
+  },
+
   // ═══ Email-based opt-outs ═════════════════════════════════════════════════
 
   {
