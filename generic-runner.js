@@ -28,6 +28,9 @@ const MARKUP_PATH     = path.join(__dirname, 'data', 'markup-parsed.json');
 const BADBOOL_PATH    = path.join(__dirname, 'data', 'badbool-extra.json');
 const DEAD_URLS_PATH  = path.join(__dirname, 'data', 'dead-urls.json');
 
+const { detectConfirmationRequired } = require('./lib/confirm');
+const { CONFIRM_RECHECK_DAYS } = require('./lib/config');
+
 // Config is loaded lazily so that modules importing only the pure helpers
 // (classifyNavError, isDeadStatus, loadDeadSet) don't require config.json.
 let _config = null;
@@ -261,14 +264,22 @@ async function submitForm(page) {
 // ─── Process one generic URL ──────────────────────────────────────────────────
 
 async function processGenericUrl(page, broker, state, dryRun = false, injectedDeadSet) {
-  const daysAgo = (() => {
-    const entry = state.optOuts[broker.name];
-    if (!entry?.lastSuccess) return Infinity;
-    return (Date.now() - new Date(entry.lastSuccess).getTime()) / 86400000;
-  })();
-
-  if (daysAgo < RECHECK_DAYS) {
-    return { status: 'skipped', detail: `${Math.round(daysAgo)}d ago` };
+  // WP4: if the entry is in pending-confirmation state, use the shorter 14-day
+  // re-check window so the user has a chance to click the confirmation link.
+  const entry = state.optOuts[broker.name];
+  if (entry) {
+    const stamp = entry.lastAttempt || entry.lastSuccess;
+    if (stamp) {
+      const ageDays = (Date.now() - new Date(stamp).getTime()) / 86400000;
+      if (entry.pendingConfirmation) {
+        if (ageDays < CONFIRM_RECHECK_DAYS) {
+          return { status: 'skipped', detail: `pending confirm — retry in ${Math.max(0, Math.round(CONFIRM_RECHECK_DAYS - ageDays))}d` };
+        }
+        // window elapsed → fall through to re-attempt
+      } else if (ageDays < RECHECK_DAYS) {
+        return { status: 'skipped', detail: `${Math.round(ageDays)}d ago` };
+      }
+    }
   }
 
   // Short-circuit without a network request when the host is known-dead.
@@ -295,24 +306,32 @@ async function processGenericUrl(page, broker, state, dryRun = false, injectedDe
       return { status: 'skipped', detail: 'dry-run — generic opt-out not submitted' };
     }
 
+    // Helper: convert a "success" result into "pending_confirm" if the
+    // resulting page asks the user to confirm via email (WP4).
+    const finalize = async (detail) => {
+      const c = await detectConfirmationRequired(page);
+      if (c.pending) return { status: 'pending_confirm', detail: c.snippet || detail };
+      return { status: 'success', detail };
+    };
+
     // Strategy 1: click "Do Not Sell" link
     const clicked = await clickDoNotSell(page);
     if (clicked) {
       // After clicking, try to fill any follow-up form
       await fillGenericForm(page);
       await submitForm(page);
-      return { status: 'success', detail: 'Do Not Sell clicked' };
+      return finalize('Do Not Sell clicked');
     }
 
     // Strategy 2: OneTrust / TrustArc privacy manager
     const managed = await handlePrivacyManager(page);
-    if (managed) return { status: 'success', detail: 'Privacy manager opted out' };
+    if (managed) return finalize('Privacy manager opted out');
 
     // Strategy 3: fill form
     const filled = await fillGenericForm(page);
     if (filled) {
       const submitted = await submitForm(page);
-      if (submitted) return { status: 'success', detail: 'Form submitted' };
+      if (submitted) return finalize('Form submitted');
       // Filled but no submit button found — still counts as partial
       return { status: 'success', detail: 'Form filled (no submit button found)' };
     }
@@ -390,6 +409,9 @@ async function runGenericBrokers(context, explicitBrokerHosts, state, logResult,
 
     if (result.status === 'success') {
       recordSuccess(broker.name, result.detail || '');
+    } else if (result.status === 'pending_confirm') {
+      const { recordPendingConfirmation } = require('./lib/config');
+      recordPendingConfirmation(broker.name, result.detail || '');
     }
 
     await page.waitForTimeout(400); // polite delay

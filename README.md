@@ -116,11 +116,31 @@ auto-identity-remove/
 ```
 
 On each run you'll see:
-- `✅ Removed` — opt-out submitted this run
+- `✅ Submitted (form accepted)` — opt-out form was submitted this run
+- `📧 Awaiting email confirm` — broker replied "check your email to confirm"; click the link in your inbox. Auto-retried after 14 days if still pending.
 - `⏭  Skipped (fresh)` — removed recently, re-check not due yet
 - `🔍 Not listed` — your name wasn't found on that site
 - `📋 Manual needed` — opened in your browser for you to handle
 - `❌ Error` — network/timeout issue, will retry next run
+- `💀 Dead (stale URL)` — broker URL is gone (DNS/404); not counted as an error
+
+> **Submitted ≠ confirmed deleted.** Use `node watcher.js --verify` for spot-check verification. See [STATUS.md](STATUS.md) for a per-broker confidence table.
+
+## How confident should I be?
+
+This tool covers 500+ data brokers in two tiers:
+
+| Tier | Count | Confidence |
+|---|---|---|
+| **Explicit brokers** ([STATUS.md](STATUS.md)) | ~31 | Hand-mapped with specific selectors. `verified` entries have been tested live; `untested` ones may have drifted since they were added. |
+| **Generic runner** | ~490 | Best-effort heuristic — tries 4 strategies (Do Not Sell click, OneTrust/TrustArc, generic form, DSAR link). Many succeed; some fail silently. |
+
+The `✅ Submitted` count means the form was accepted by the broker. It does **not** prove deletion. To check:
+
+1. Run `node watcher.js --verify` — re-searches each broker where a successful opt-out was recorded and reports whether your name still appears.
+2. Look at the `📧 Awaiting email confirm` section after each run — these are half-done until you click the link.
+
+If you want to know exactly which brokers are hand-verified vs heuristic, see [STATUS.md](STATUS.md).
 
 ---
 

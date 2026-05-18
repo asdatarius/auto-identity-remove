@@ -17,8 +17,12 @@ const assert = require('node:assert/strict');
 // Patch config module before requiring broker-runner
 const configMock = {
   RECHECK_DAYS: 90,
+  CONFIRM_RECHECK_DAYS: 14,
   lastOptOutDaysAgo: () => Infinity,  // always "due" — won't hit recheck skip
+  shouldSkip: () => null,             // never skip via state in these tests
+  isPendingConfirmation: () => false,
   recordSuccess: () => {},
+  recordPendingConfirmation: () => {},
   loadState: () => ({ optOuts: {} }),
 };
 
@@ -48,6 +52,9 @@ function patchedLoad(request, parent, isMain) {
   }
   if (request === './captcha' && parent?.filename?.includes('broker-runner')) {
     return { detectAndSolveCaptcha: async () => true };
+  }
+  if (request === './confirm' && parent?.filename?.includes('broker-runner')) {
+    return { detectConfirmationRequired: async () => ({ pending: false, snippet: '' }) };
   }
   return originalLoad(request, parent, isMain);
 }

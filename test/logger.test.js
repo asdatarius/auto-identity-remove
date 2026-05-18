@@ -67,7 +67,7 @@ test('buildSummary includes expected counts and action-required block', () => {
   logger.logResult('G', 'error');
 
   const s = logger.buildSummary();
-  assert.match(s, /✅ Removed:\s+2/);
+  assert.match(s, /✅ Submitted \(form accepted\):\s+2/);
   assert.match(s, /⏭  Skipped \(fresh\):\s+1/);
   assert.match(s, /🔍 Not listed:\s+1/);
   assert.match(s, /📋 Manual needed:\s+2/); // captchaFailed + manual
@@ -127,6 +127,64 @@ test('resetResults clears the dead bucket', () => {
   assert.equal(logger.results.dead.length, 0);
 });
 
+// ── WP4: pending_confirm bucket ──────────────────────────────────────────────
+
+test('logResult routes pending_confirm into pendingConfirm bucket', () => {
+  logger.resetResults();
+  logger.logResult('Pipl', 'pending_confirm', 'check your email to confirm');
+  assert.equal(logger.results.pendingConfirm.length, 1);
+  assert.equal(logger.results.pendingConfirm[0].broker, 'Pipl');
+  // Must NOT be a success
+  assert.equal(logger.results.succeeded.length, 0);
+});
+
+test('STATUS_BUCKET maps pending_confirm and ICONS has 📧', () => {
+  assert.equal(logger.STATUS_BUCKET.pending_confirm, 'pendingConfirm');
+  assert.equal(logger.ICONS.pending_confirm, '📧');
+});
+
+test('resetResults clears pendingConfirm bucket', () => {
+  logger.resetResults();
+  logger.logResult('X', 'pending_confirm', 'check your inbox');
+  assert.equal(logger.results.pendingConfirm.length, 1);
+  logger.resetResults();
+  assert.equal(logger.results.pendingConfirm.length, 0);
+});
+
+test('buildSummary lists pending-confirmation brokers in their own section', () => {
+  logger.resetResults();
+  logger.logResult('Pipl', 'pending_confirm', 'Please check your email');
+  logger.logResult('Spokeo', 'pending_confirm', 'We have sent you a confirmation');
+  logger.logResult('Acxiom', 'success');
+  const s = logger.buildSummary();
+  assert.match(s, /📧 Awaiting email confirm:\s+2/);
+  assert.match(s, /Awaiting email confirmation/);
+  assert.match(s, /• Pipl/);
+  assert.match(s, /• Spokeo/);
+});
+
+// ── WP7: transparency / disclaimer wording ─────────────────────────────────
+
+test('buildSummary uses "Submitted (form accepted)" wording, not "Removed"', () => {
+  logger.resetResults();
+  logger.logResult('A', 'success');
+  const s = logger.buildSummary();
+  assert.match(s, /Submitted \(form accepted\)/);
+  assert.equal(s.includes('Removed:'), false);
+});
+
+test('buildSummary contains honest disclaimer footer', () => {
+  logger.resetResults();
+  const s = logger.buildSummary();
+  assert.match(s, /Submitted ≠ confirmed deleted/);
+  assert.match(s, /--verify/);
+});
+
+test('DISCLAIMER constant is exported', () => {
+  assert.equal(typeof logger.DISCLAIMER, 'string');
+  assert.match(logger.DISCLAIMER, /Submitted ≠ confirmed deleted/);
+});
+
 test('buildSummary shows 💀 Dead line and excludes dead from ❌ Errors count', () => {
   logger.resetResults();
   logger.logResult('ok.com', 'success');
@@ -140,5 +198,5 @@ test('buildSummary shows 💀 Dead line and excludes dead from ❌ Errors count'
   // Errors shows only genuine errors, not dead ones
   assert.match(s, /❌ Errors:\s+1/);
   // Sanity-check success
-  assert.match(s, /✅ Removed:\s+1/);
+  assert.match(s, /✅ Submitted \(form accepted\):\s+1/);
 });
