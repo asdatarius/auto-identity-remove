@@ -20,7 +20,9 @@ const DRY_RUN = process.argv.includes('--dry-run');
 const VERIFY  = process.argv.includes('--verify');
 setDryRun(DRY_RUN); // makes recordSuccess/saveState no-op-on-disk in dry-run
 const config = loadConfig();
-const { notify, profileDir } = config;
+const { notify } = config;
+const profileDir = (config.profileDir || '~/.config/auto-identity-remove')
+  .replace(/^~(?=\/|$)/, os.homedir());
 const state = loadState();
 brokerRunner.configure({ dryRun: DRY_RUN, person: config.person, capsolver: config.capsolver });
 
