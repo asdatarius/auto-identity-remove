@@ -80,6 +80,28 @@ Create:
 
 ---
 
+## Phase 0 — Risk resolution (DONE, post-modularization)
+
+The three risks the Phase 0 agent flagged are **fixed** (commit after `cdb1754`):
+
+1. **Shared-state singletons** → added `resetState()` (lib/config.js) and
+   `resetResults()` (lib/logger.js), both in-place so existing references stay
+   valid. WP5 (`--verify`) and tests use these for run isolation.
+2. **Dry-run was not safe** → `setDryRun(true)` now makes `saveState()` a
+   no-op-on-disk, and `generic-runner.js` returns early (after navigation +
+   banner dismissal) so it never clicks "Do Not Sell" or submits forms in
+   dry-run. Previously `--dry-run` silently submitted ~470 generic forms.
+   `runGenericBrokers(...)` now takes a final `{ dryRun }` opts arg.
+3. **Injected-config signatures (non-breaking, by design)** — these stand:
+   - `sendText(msg, notify)` — notify config injected (lib/notify.js)
+   - `solveRecaptcha(page, capsolver)` / `detectAndSolveCaptcha(page, capsolver)`
+   - `lib/broker-runner.js` `configure({ dryRun, person, capsolver })` then
+     `processBroker` / `sendEmailOptOuts`.
+   **Phase 1 agents touching these MUST keep the injected-arg signature** (do
+   not reintroduce module-level closures — it creates circular requires).
+
+Test suite is 19/19 green. `--dry-run` verified to leave `state.json` byte-identical.
+
 ## Phase 1 — Parallel Work Packages
 
 After Phase 0 merges, WP1–WP7 touch mostly disjoint files and can run as

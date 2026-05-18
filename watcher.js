@@ -11,12 +11,13 @@ const path = require('path');
 const fs   = require('fs');
 const os   = require('os');
 
-const { STATE_PATH, RECHECK_DAYS, loadConfig, loadState, recordSuccess } = require('./lib/config');
+const { STATE_PATH, RECHECK_DAYS, loadConfig, loadState, recordSuccess, setDryRun } = require('./lib/config');
 const { results, logResult, buildSummary } = require('./lib/logger');
 const { sendText, macNotify, openInBrowser } = require('./lib/notify');
 const brokerRunner = require('./lib/broker-runner');
 
 const DRY_RUN = process.argv.includes('--dry-run');
+setDryRun(DRY_RUN); // makes recordSuccess/saveState no-op-on-disk in dry-run
 const config = loadConfig();
 const { notify, profileDir } = config;
 const state = loadState();
@@ -84,7 +85,7 @@ async function main() {
 
   // generic-runner.js signature left as-is (non-trivial to change cleanly);
   // watcher passes the imported logResult/recordSuccess into it.
-  await runGenericBrokers(context, explicitHosts, state, logResult, recordSuccess);
+  await runGenericBrokers(context, explicitHosts, state, logResult, recordSuccess, { dryRun: DRY_RUN });
 
   await context.close().catch(() => {});
 

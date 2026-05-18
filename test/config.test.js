@@ -57,14 +57,40 @@ test('RECHECK_DAYS constant is 90 (unchanged from monolith)', () => {
   assert.equal(cfg.RECHECK_DAYS, 90);
 });
 
-test('dry-run state-save guard: run log write is gated by DRY_RUN in watcher.js', () => {
-  // The monolith (and this refactor) gate the run-log file write on
-  // `if (!DRY_RUN)`. recordSuccess itself writes state.json verbatim in both
-  // modes — this test documents/asserts that contract so a future change that
-  // alters it is caught. We assert recordSuccess + saveState are exported and
-  // saveState does not require DRY_RUN to be a no-op (verbatim behavior).
-  assert.equal(typeof cfg.recordSuccess, 'function');
-  assert.equal(typeof cfg.saveState, 'function');
-  // saveState has no DRY_RUN parameter — guard lives in watcher.js, by design.
-  assert.equal(cfg.saveState.length, 0);
+test('setDryRun(true): recordSuccess does NOT write state.json to disk', () => {
+  const fs = require('node:fs');
+  const before = fs.existsSync(cfg.STATE_PATH)
+    ? fs.readFileSync(cfg.STATE_PATH, 'utf8')
+    : null;
+  const state = cfg.loadState();
+  const name = '__test_dryrun_no_persist__';
+  const prev = state.optOuts[name];
+
+  cfg.setDryRun(true);
+  cfg.recordSuccess(name, 'should-not-persist');
+  const after = fs.existsSync(cfg.STATE_PATH)
+    ? fs.readFileSync(cfg.STATE_PATH, 'utf8')
+    : null;
+  cfg.setDryRun(false); // restore for other tests
+
+  assert.equal(after, before, 'state.json must be byte-identical after dry-run recordSuccess');
+  assert.ok(state.optOuts[name], 'in-memory mutation still happens (harmless)');
+
+  // cleanup in-memory
+  if (prev === undefined) delete state.optOuts[name]; else state.optOuts[name] = prev;
+});
+
+test('resetState(): reloads from disk in place, reference stays valid', () => {
+  const state = cfg.loadState();
+  const name = '__test_reset_marker__';
+  state.optOuts[name] = { lastSuccess: new Date().toISOString(), totalRuns: 99 };
+  const sameRef = cfg.resetState();
+  assert.equal(sameRef, state, 'resetState returns the same shared reference');
+  assert.equal(state.optOuts[name], undefined, 'in-memory-only change is wiped by reload');
+});
+
+test('setDryRun is exported and resets cleanly', () => {
+  assert.equal(typeof cfg.setDryRun, 'function');
+  assert.equal(typeof cfg.resetState, 'function');
+  cfg.setDryRun(false);
 });

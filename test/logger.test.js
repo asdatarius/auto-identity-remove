@@ -84,3 +84,17 @@ test('buildSummary omits action-required block when nothing manual', () => {
   assert.equal(s.includes('Action Required'), false);
   assert.match(s, /📋 Manual needed:\s+0/);
 });
+
+test('resetResults clears every bucket in place and keeps the shared reference', () => {
+  reset();
+  logger.logResult('A', 'success');
+  logger.logResult('B', 'error', 'boom');
+  const ref = logger.results;
+  const returned = logger.resetResults();
+
+  assert.equal(returned, ref, 'resetResults returns the same shared reference');
+  for (const k of ['succeeded', 'skipped', 'notFound', 'captchaFailed', 'manual', 'errors']) {
+    assert.equal(logger.results[k].length, 0, `${k} should be empty after reset`);
+  }
+  assert.equal(typeof logger.results.runAt, 'string');
+});

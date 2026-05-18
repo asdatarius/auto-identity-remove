@@ -204,7 +204,7 @@ async function submitForm(page) {
 
 // ─── Process one generic URL ──────────────────────────────────────────────────
 
-async function processGenericUrl(page, broker, state) {
+async function processGenericUrl(page, broker, state, dryRun = false) {
   const daysAgo = (() => {
     const entry = state.optOuts[broker.name];
     if (!entry?.lastSuccess) return Infinity;
@@ -220,6 +220,13 @@ async function processGenericUrl(page, broker, state) {
     await page.waitForTimeout(1500);
 
     await dismissBanners(page);
+
+    // Dry-run: navigation + banner dismissal are read-only and confirm the URL
+    // is reachable, but every strategy below is mutating (clicks a Do Not Sell
+    // button or submits a form). Stop here so --dry-run is genuinely safe.
+    if (dryRun) {
+      return { status: 'skipped', detail: 'dry-run — generic opt-out not submitted' };
+    }
 
     // Strategy 1: click "Do Not Sell" link
     const clicked = await clickDoNotSell(page);
@@ -296,15 +303,16 @@ function loadGenericBrokers(explicitBrokerHosts) {
 
 // ─── Main export ──────────────────────────────────────────────────────────────
 
-async function runGenericBrokers(context, explicitBrokerHosts, state, logResult, recordSuccess) {
+async function runGenericBrokers(context, explicitBrokerHosts, state, logResult, recordSuccess, opts = {}) {
+  const dryRun = !!opts.dryRun;
   const brokers = loadGenericBrokers(explicitBrokerHosts);
-  console.log(`\n── Generic brokers (${brokers.length} from Markup CSV + BADBOOL) ──`);
+  console.log(`\n── Generic brokers (${brokers.length} from Markup CSV + BADBOOL)${dryRun ? ' [DRY RUN]' : ''} ──`);
 
   const page = await context.newPage();
 
   for (const broker of brokers) {
     process.stdout.write(`\n  [${broker.name.slice(0,40)}]… `);
-    const result = await processGenericUrl(page, broker, state);
+    const result = await processGenericUrl(page, broker, state, dryRun);
 
     logResult(broker.name, result.status, result.detail || '');
 
