@@ -9,7 +9,7 @@
 - **Confidence** — `verified` means the selectors / flow have been manually confirmed against the live site. `untested` means the entry exists but has not been hand-verified end-to-end and depends on the broker not having changed its DOM.
 - **US-only** — site indexes US public records / voter data / phone directories; automatically skipped for non-US users.
 
-**This list covers the ~31 explicit brokers in `brokers.js` only.** The other ~490 brokers in `data/markup-parsed.json` and `data/badbool-extra.json` are handled by the heuristic generic runner — every one of those is best-effort. Run `node watcher.js --verify` to spot-check whether opt-outs are still in effect.
+**This list covers the 42 explicit brokers in `brokers.js` only.** The other ~490 brokers in `data/markup-parsed.json` and `data/badbool-extra.json` are handled by the heuristic generic runner — every one of those is best-effort. Run `node watcher.js --verify` to spot-check whether opt-outs are still in effect.
 
 ---
 
@@ -45,7 +45,18 @@
 | LexisNexis | direct-form | no | untested | no |
 | ZoomInfo | direct-form | no | untested | no |
 | Clearbit | direct-form | no | untested | no |
+| PeekYou | direct-form | no | untested | no |
+| Addresses.com | direct-form | no | untested | yes |
+| AnyWho | direct-form | no | untested | yes |
+| TruthFinder | direct-form | no | untested | yes |
+| InstantCheckmate | direct-form | no | untested | yes |
+| Epsilon | direct-form | no | untested | no |
+| Oracle Data Cloud | direct-form | no | untested | no |
+| Equifax (marketing) | direct-form | no | untested | no |
+| Experian (marketing) | direct-form | no | untested | no |
+| DataAxle | direct-form | no | untested | no |
 | Pipl | email | n/a | untested | no |
+| Spokeo (email) | email | n/a | untested | no |
 | Google — Results About You | manual | n/a | n/a | no |
 | Google — Outdated Content | manual | n/a | n/a | no |
 

@@ -132,7 +132,7 @@ This tool covers 500+ data brokers in two tiers:
 
 | Tier | Count | Confidence |
 |---|---|---|
-| **Explicit brokers** ([STATUS.md](STATUS.md)) | ~31 | Hand-mapped with specific selectors. `verified` entries have been tested live; `untested` ones may have drifted since they were added. |
+| **Explicit brokers** ([STATUS.md](STATUS.md)) | 42 | Hand-mapped with specific selectors. `verified` entries have been tested live; `untested` ones may have drifted since they were added. |
 | **Generic runner** | ~490 | Best-effort heuristic — tries 4 strategies (Do Not Sell click, OneTrust/TrustArc, generic form, DSAR link). Many succeed; some fail silently. |
 
 The `✅ Submitted` count means the form was accepted by the broker. It does **not** prove deletion. To check:
