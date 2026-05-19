@@ -58,8 +58,9 @@ if (LIST_MODE) {
 
 // ── --pending: print brokers awaiting email confirmation, then exit ──────────
 if (PENDING_MODE) {
+  const brokers = require('./brokers');
   const { getPendingConfirmations } = require('./lib/config');
-  const pending = getPendingConfirmations();
+  const pending = getPendingConfirmations(brokers);
   if (pending.length === 0) {
     console.log('\nNo brokers are currently awaiting email confirmation.\n');
   } else {
@@ -68,8 +69,8 @@ if (PENDING_MODE) {
     console.log('-'.repeat(90));
     for (const p of pending) {
       const since = p.since.slice(0, 10);
-      const snippet = p.snippet ? p.snippet.slice(0, 40) : '(check your inbox)';
-      console.log(pad(p.name, 40) + pad(since, 14) + snippet);
+      const hint = p.expectedSender || (p.snippet ? p.snippet.slice(0, 40) : '(check your inbox)');
+      console.log(pad(p.name, 40) + pad(since, 14) + hint);
     }
     console.log(`\n${pending.length} broker(s) awaiting confirmation. Check your inbox for opt-out confirmation emails.\n`);
   }

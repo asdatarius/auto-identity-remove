@@ -61,6 +61,7 @@ module.exports = [
     captchaLikely: false,
     priority: 1,
     usOnly: true,
+    expectedSender: 'optout@spokeo.com',
   },
 
   {
@@ -74,6 +75,7 @@ module.exports = [
     captchaLikely: false,
     priority: 1,
     usOnly: true,
+    expectedSender: 'noreply@whitepages.com',
   },
 
   {
@@ -98,6 +100,7 @@ module.exports = [
     captchaLikely: false,
     priority: 1,
     usOnly: true,
+    expectedSender: 'noreply@truepeoplesearch.com',
   },
 
   {
@@ -111,6 +114,7 @@ module.exports = [
     captchaLikely: true,
     priority: 1,
     usOnly: true,
+    expectedSender: 'noreply@beenverified.com',
   },
 
   {
@@ -124,6 +128,7 @@ module.exports = [
     captchaLikely: false,
     timeoutMs: 30000,
     priority: 1,
+    expectedSender: 'noreply@radaris.com',
   },
 
   {
@@ -134,6 +139,7 @@ module.exports = [
     submitSelector: 'button[type="submit"]',
     captchaLikely: false,
     priority: 1,
+    expectedSender: 'privacy@intelius.com',
   },
 
   {
@@ -144,6 +150,7 @@ module.exports = [
     submitSelector: 'button[type="submit"],input[type="submit"]',
     captchaLikely: false,
     priority: 1,
+    expectedSender: 'support@peoplefinders.com',
   },
 
   {
@@ -166,6 +173,7 @@ module.exports = [
     submitSelector: 'button[type="submit"]',
     captchaLikely: true,
     priority: 1,
+    expectedSender: 'support@mylife.com',
   },
 
   {
@@ -188,6 +196,7 @@ module.exports = [
     submitSelector: 'button[type="submit"]',
     captchaLikely: true,
     priority: 1,
+    expectedSender: 'noreply@familytreenow.com',
   },
 
   {
@@ -416,6 +425,7 @@ module.exports = [
     submitSelector: 'button[type="submit"]',
     captchaLikely: false,
     priority: 1,
+    expectedSender: 'noreply@instantcheckmate.com',
   },
 
   {
