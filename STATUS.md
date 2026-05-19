@@ -1,15 +1,15 @@
 # Broker Status
 
-**Last updated:** auto-generated table — re-run `node scripts/generate-status.js` after editing `brokers.js`.
+**Last updated:** auto-generated table - re-run `node scripts/generate-status.js` after editing `brokers.js`.
 
 ## How to read this
 
-- **Method** — how the opt-out is automated. `search-form` (looks you up first, then submits removal), `direct-form` (goes straight to the opt-out URL), `email` (sends a removal-request email), `manual` (opened in your browser).
-- **CAPTCHA** — whether CapSolver is invoked before submit.
-- **Confidence** — `verified` means the selectors / flow have been manually confirmed against the live site. `untested` means the entry exists but has not been hand-verified end-to-end and depends on the broker not having changed its DOM.
-- **US-only** — site indexes US public records / voter data / phone directories; automatically skipped for non-US users.
+- **Method** - how the opt-out is automated. `search-form` (looks you up first, then submits removal), `direct-form` (goes straight to the opt-out URL), `email` (sends a removal-request email), `manual` (opened in your browser).
+- **CAPTCHA** - whether CapSolver is invoked before submit.
+- **Confidence** - `verified` means the selectors / flow have been manually confirmed against the live site. `untested` means the entry exists but has not been hand-verified end-to-end and depends on the broker not having changed its DOM.
+- **US-only** - site indexes US public records / voter data / phone directories; automatically skipped for non-US users.
 
-**This list covers the 42 explicit brokers in `brokers.js` only.** The other ~490 brokers in `data/markup-parsed.json` and `data/badbool-extra.json` are handled by the heuristic generic runner — every one of those is best-effort. Run `node watcher.js --verify` to spot-check whether opt-outs are still in effect.
+**This list covers the 42 explicit brokers in `brokers.js` only.** The other ~490 brokers in `data/markup-parsed.json` and `data/badbool-extra.json` are handled by the heuristic generic runner - every one of those is best-effort. Run `node watcher.js --verify` to spot-check whether opt-outs are still in effect.
 
 ---
 
@@ -57,8 +57,8 @@
 | DataAxle | direct-form | no | untested | no |
 | Pipl | email | n/a | untested | no |
 | Spokeo (email) | email | n/a | untested | no |
-| Google — Results About You | manual | n/a | n/a | no |
-| Google — Outdated Content | manual | n/a | n/a | no |
+| Google - Results About You | manual | n/a | n/a | no |
+| Google - Outdated Content | manual | n/a | n/a | no |
 
 ## How confident should I be?
 
@@ -70,7 +70,7 @@
 | `manual` | High (you) | Opened in your browser; you complete it. |
 | `email` | High (delivery) / Medium (compliance) | Email is sent. Whether the broker honors it is up to them. |
 
-After running, use `node watcher.js --verify` to search the broker for your name again and confirm whether listings are gone. `--verify` is the honest ceiling — "submitted" ≠ "deleted."
+After running, use `node watcher.js --verify` to search the broker for your name again and confirm whether listings are gone. `--verify` is the honest ceiling - "submitted" ≠ "deleted."
 
 ## Reporting drift
 

@@ -60,7 +60,7 @@ node setup.js
 | **CapSolver key** | For CAPTCHA-protected opt-out forms |
 | **One-time accounts** | Creates accounts on sites that require login (stored in `config.json`, gitignored) |
 | **iMessage** | Phone number to text the results summary to |
-| **Monthly schedule** | Registers a monthly job to run on the 1st at 9am (launchd / systemd / crontab / schtasks — detected automatically) |
+| **Monthly schedule** | Registers a monthly job to run on the 1st at 9am (launchd / systemd / crontab / schtasks - detected automatically) |
 
 **Your personal info never leaves your machine.** `config.json` and `state.json` are both gitignored.
 
@@ -70,7 +70,7 @@ node setup.js
 
 Some opt-out forms have reCAPTCHA. Without CapSolver, those sites go to your manual list instead of being handled automatically.
 
-1. Sign up at [capsolver.com](https://capsolver.com) — free, pay-as-you-go
+1. Sign up at [capsolver.com](https://capsolver.com) - free, pay-as-you-go
 2. Add $1–2 of credits (enough for months of use at ~$0.001/solve)
 3. Paste your API key when `setup.js` asks, or add it to `config.json`:
 
@@ -110,7 +110,7 @@ first: `echo '{}' > state.json`.
 
 ### Webhook notifications (any OS)
 
-When running headless or in Docker you won't have iMessage or a desktop — use
+When running headless or in Docker you won't have iMessage or a desktop - use
 a webhook instead. Set `notify.webhook` in `config.json` to any ntfy.sh,
 Slack incoming-webhook, or Discord webhook URL:
 
@@ -122,7 +122,7 @@ Slack incoming-webhook, or Discord webhook URL:
 ```
 
 The tool POSTs `{"text": "<summary>"}` after every run. Works on macOS, Linux,
-and Windows — the webhook fires in addition to (not instead of) any platform
+and Windows - the webhook fires in addition to (not instead of) any platform
 notification that is available.
 
 ---
@@ -148,7 +148,7 @@ auto-identity-remove/
 
 ## State tracking
 
-`state.json` tracks when each broker was last successfully opted out. The default re-check window is **90 days** — brokers typically re-add your data within that window, so the script re-submits when it's time.
+`state.json` tracks when each broker was last successfully opted out. The default re-check window is **90 days** - brokers typically re-add your data within that window, so the script re-submits when it's time.
 
 ```json
 {
@@ -163,13 +163,13 @@ auto-identity-remove/
 ```
 
 On each run you'll see:
-- `✅ Submitted (form accepted)` — opt-out form was submitted this run
-- `📧 Awaiting email confirm` — broker replied "check your email to confirm"; click the link in your inbox. Auto-retried after 14 days if still pending.
-- `⏭  Skipped (fresh)` — removed recently, re-check not due yet
-- `🔍 Not listed` — your name wasn't found on that site
-- `📋 Manual needed` — opened in your browser for you to handle
-- `❌ Error` — network/timeout issue, will retry next run
-- `💀 Dead (stale URL)` — broker URL is gone (DNS/404); not counted as an error
+- `✅ Submitted (form accepted)` - opt-out form was submitted this run
+- `📧 Awaiting email confirm` - broker replied "check your email to confirm"; click the link in your inbox. Auto-retried after 14 days if still pending.
+- `⏭  Skipped (fresh)` - removed recently, re-check not due yet
+- `🔍 Not listed` - your name wasn't found on that site
+- `📋 Manual needed` - opened in your browser for you to handle
+- `❌ Error` - network/timeout issue, will retry next run
+- `💀 Dead (stale URL)` - broker URL is gone (DNS/404); not counted as an error
 
 > **Submitted ≠ confirmed deleted.** Use `node watcher.js --verify` for spot-check verification. See [STATUS.md](STATUS.md) for a per-broker confidence table.
 
@@ -180,12 +180,12 @@ This tool covers 500+ data brokers in two tiers:
 | Tier | Count | Confidence |
 |---|---|---|
 | **Explicit brokers** ([STATUS.md](STATUS.md)) | 42 | Hand-mapped with specific selectors. `verified` entries have been tested live; `untested` ones may have drifted since they were added. |
-| **Generic runner** | ~490 | Best-effort heuristic — tries 4 strategies (Do Not Sell click, OneTrust/TrustArc, generic form, DSAR link). Many succeed; some fail silently. |
+| **Generic runner** | ~490 | Best-effort heuristic - tries 4 strategies (Do Not Sell click, OneTrust/TrustArc, generic form, DSAR link). Many succeed; some fail silently. |
 
 The `✅ Submitted` count means the form was accepted by the broker. It does **not** prove deletion. To check:
 
-1. Run `node watcher.js --verify` — re-searches each broker where a successful opt-out was recorded and reports whether your name still appears.
-2. Look at the `📧 Awaiting email confirm` section after each run — these are half-done until you click the link.
+1. Run `node watcher.js --verify` - re-searches each broker where a successful opt-out was recorded and reports whether your name still appears.
+2. Look at the `📧 Awaiting email confirm` section after each run - these are half-done until you click the link.
 
 If you want to know exactly which brokers are hand-verified vs heuristic, see [STATUS.md](STATUS.md).
 
@@ -227,7 +227,7 @@ If you want to know exactly which brokers are hand-verified vs heuristic, see [S
 | **Clearbit** | Direct form (B2B enrichment data) |
 | Pipl | Email opt-out via Mail.app |
 
-### Generic — 500+ additional brokers (auto-detected)
+### Generic - 500+ additional brokers (auto-detected)
 
 `generic-runner.js` handles the remaining ~470 brokers from two public datasets:
 
@@ -248,8 +248,8 @@ Sites requiring manual action are opened in your browser automatically.
 
 | Site | Why manual |
 |------|-----------|
-| Google — Results About You | Requires Google account interaction |
-| Google — Outdated Content | Case-by-case URL submission |
+| Google - Results About You | Requires Google account interaction |
+| Google - Outdated Content | Case-by-case URL submission |
 
 ---
 
@@ -273,7 +273,7 @@ Edit `brokers.js` and add an entry:
 }
 ```
 
-PRs welcome — especially for brokers with verified working selectors.
+PRs welcome - especially for brokers with verified working selectors.
 
 ---
 
@@ -283,7 +283,7 @@ PRs welcome — especially for brokers with verified working selectors.
 ./run.sh
 ```
 
-**Dry-run mode** — navigates to each site and fills forms but does NOT submit anything. Good for verifying what the script will do before your first real run:
+**Dry-run mode** - navigates to each site and fills forms but does NOT submit anything. Good for verifying what the script will do before your first real run:
 
 ```bash
 node watcher.js --dry-run
@@ -310,8 +310,8 @@ Output is grouped into three sections:
 | Section | Meaning |
 |---------|---------|
 | `VERIFIED CLEAR` | Your name was not found in the broker's search today |
-| `STILL LISTED` | A listing was found — the opt-out may have failed, or your data was re-added |
-| `UNVERIFIABLE` | The broker uses a direct-form, email, or manual method — no automated search signal exists to check |
+| `STILL LISTED` | A listing was found - the opt-out may have failed, or your data was re-added |
+| `UNVERIFIABLE` | The broker uses a direct-form, email, or manual method - no automated search signal exists to check |
 
 A dated JSON report is saved to `logs/verify-YYYY-MM-DD.json`.
 
@@ -365,7 +365,7 @@ The script:
 3. Merges them into `data/dead-urls.json` (deduped, sorted)
 4. Prints a summary of how many new hosts were added
 
-The script is **idempotent** — running it twice produces no change. You can add it as a post-run step or run it manually whenever you want to prune the dead list.
+The script is **idempotent** - running it twice produces no change. You can add it as a post-run step or run it manually whenever you want to prune the dead list.
 
 `data/dead-urls.json` is committed to the repo so the dead list is shared with all clones.
 
@@ -389,14 +389,14 @@ This tool supports non-US users with a few important caveats.
 ### What works
 
 - `setup.js` will prompt for **Country** (2-letter ISO code, e.g. `CA`, `GB`, `AU`) and then replace the US-centric "State" / "ZIP code" prompts with **Province/Region** and **Postal code** prompts that accept any format (`K1A 0A6`, `SW1A 1AA`, `2000`, etc.) with no coercion.
-- Phone numbers for non-US users are stored verbatim — no `(xxx) xxx-xxxx` reformatting is applied.
+- Phone numbers for non-US users are stored verbatim - no `(xxx) xxx-xxxx` reformatting is applied.
 - `lib/forms.js` automatically tries province/postal/postcode HTML field variants (e.g. `input[name*="province"]`, `input[name*="postcode"]`) when filling forms for non-US users, with no change needed in broker definitions.
 - A country `<select>` on opt-out forms is targeted and filled with your 2-letter country code when present.
 - Global brokers (ZoomInfo, Clearbit, Acxiom, Radaris, etc.) are attempted for all users.
 
 ### US-only brokers (automatically skipped for non-US users)
 
-The following brokers are flagged `usOnly: true` and are silently skipped when your configured country is not `US`. These sites index US public records, voter data, or phone directories — a non-US person definitionally has no record to remove there:
+The following brokers are flagged `usOnly: true` and are silently skipped when your configured country is not `US`. These sites index US public records, voter data, or phone directories - a non-US person definitionally has no record to remove there:
 
 | Broker | Reason |
 |--------|--------|
@@ -412,7 +412,7 @@ All other brokers in the list are attempted regardless of country.
 
 ### What won't help much
 
-US people-search sites (`Spokeo`, `WhitePages`, etc.) hold records sourced from US public records — if you have never lived in the US, your data is very unlikely to appear on these sites. The script skips them for you automatically.
+US people-search sites (`Spokeo`, `WhitePages`, etc.) hold records sourced from US public records - if you have never lived in the US, your data is very unlikely to appear on these sites. The script skips them for you automatically.
 
 ---
 
@@ -422,9 +422,9 @@ A fair concern raised by some users: aren't you just confirming your data to the
 
 A few things worth knowing:
 
-- **These brokers already have your info.** You're not revealing anything new — you're using the legally-required removal mechanism they're obligated to provide.
+- **These brokers already have your info.** You're not revealing anything new - you're using the legally-required removal mechanism they're obligated to provide.
 - **CCPA (California) and similar state laws require brokers to honor opt-out requests.** Submitting the form creates a legal obligation to remove you. Doing nothing does not.
-- **The script uses info you're already listed under** — your name as it appears publicly, your state, your email. It doesn't add new data points.
+- **The script uses info you're already listed under** - your name as it appears publicly, your state, your email. It doesn't add new data points.
 - **The alternative is worse.** Every month that passes, more brokers scrape and resell your data. Opt-outs are imperfect, but they work more often than not.
 
 That said: if you're in a situation where even confirming your email address to a broker is a risk, this tool is not the right approach. Consider a paid service that uses a proxy email.
@@ -433,7 +433,7 @@ That said: if you're in a situation where even confirming your email address to 
 
 ## California residents: DELETE Registry (August 2025)
 
-California is launching an official **Delete Me** opt-out registry on August 1, 2025. Once registered, data brokers are legally required to delete your info automatically — no individual form submissions needed for participating brokers.
+California is launching an official **Delete Me** opt-out registry on August 1, 2025. Once registered, data brokers are legally required to delete your info automatically - no individual form submissions needed for participating brokers.
 
 Register at: **[optoutregistry.oag.ca.gov](https://optoutregistry.oag.ca.gov)** (live August 1)
 
@@ -443,7 +443,7 @@ Register at: **[optoutregistry.oag.ca.gov](https://optoutregistry.oag.ca.gov)** 
 
 ## Why not just use a paid service?
 
-Paid services like [Incogni](https://incogni.com) ($96/yr) or [Optery](https://optery.com) ($39/yr) are excellent and cover more brokers with professionally maintained opt-out flows. This tool is for people who want full control, transparency, and no recurring subscription — or who want to handle the gaps those services miss (Acxiom, LexisNexis, ZoomInfo, Clearbit).
+Paid services like [Incogni](https://incogni.com) ($96/yr) or [Optery](https://optery.com) ($39/yr) are excellent and cover more brokers with professionally maintained opt-out flows. This tool is for people who want full control, transparency, and no recurring subscription - or who want to handle the gaps those services miss (Acxiom, LexisNexis, ZoomInfo, Clearbit).
 
 Using both is the strongest approach: a paid service for the bulk of brokers + this script for the gaps.
 
