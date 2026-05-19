@@ -17,15 +17,16 @@ const { sendText, desktopNotify, openInBrowser } = require('./lib/notify');
 const brokerRunner = require('./lib/broker-runner');
 const { sendOptOutEmails } = require('./lib/email');
 
-const DRY_RUN = process.argv.includes('--dry-run');
-const VERIFY  = process.argv.includes('--verify');
+const PREVIEW  = process.argv.includes('--preview');
+const DRY_RUN  = process.argv.includes('--dry-run') || PREVIEW; // --preview implies --dry-run
+const VERIFY   = process.argv.includes('--verify');
 setDryRun(DRY_RUN); // makes recordSuccess/saveState no-op-on-disk in dry-run
 const config = loadConfig();
 const { notify } = config;
 const profileDir = (config.profileDir || '~/.config/auto-identity-remove')
   .replace(/^~(?=\/|$)/, os.homedir());
 const state = loadState();
-brokerRunner.configure({ dryRun: DRY_RUN, person: config.person, capsolver: config.capsolver });
+brokerRunner.configure({ dryRun: DRY_RUN, preview: PREVIEW, person: config.person, capsolver: config.capsolver });
 
 // Try local node_modules first, then fall back to global openclaw install
 let chromium;
@@ -54,7 +55,8 @@ async function main() {
   const { runGenericBrokers } = require('./generic-runner');
 
   console.log('\n🔒 auto-identity-remove — starting run');
-  if (DRY_RUN)  console.log('🧪 DRY RUN — forms will be filled but NOT submitted. No state will be saved.');
+  if (PREVIEW)  console.log('👀 PREVIEW — field values and target URLs will be printed before submit. No state will be saved.');
+  else if (DRY_RUN)  console.log('🧪 DRY RUN — forms will be filled but NOT submitted. No state will be saved.');
   if (VERIFY)   console.log('🔍 VERIFY — read-only spot-check. No forms submitted. No state saved.');
   console.log(`📅 ${new Date().toLocaleString()}`);
   console.log(`📋 ${brokers.length} explicit brokers + 500+ generic | re-check window: ${RECHECK_DAYS} days\n`);
