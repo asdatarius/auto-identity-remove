@@ -17,12 +17,38 @@ const { sendText, desktopNotify, openInBrowser } = require('./lib/notify');
 const brokerRunner = require('./lib/broker-runner');
 const { sendOptOutEmails } = require('./lib/email');
 const lock = require('./lib/lock');
+const { applyFilter, loadLastLog, extractFailedBrokers } = require('./lib/filter');
 
 const PREVIEW           = process.argv.includes('--preview');
 const DRY_RUN           = process.argv.includes('--dry-run') || PREVIEW; // --preview implies --dry-run
 const VERIFY            = process.argv.includes('--verify');
 const INSTALL_SCHEDULER = process.argv.includes('--install-scheduler');
 const DOCTOR            = process.argv[2] === 'doctor' || process.argv.includes('--doctor');
+
+// ── Filter flags ──────────────────────────────────────────────────────────────
+const onlyIdx   = process.argv.indexOf('--only');
+const ONLY_ARG  = onlyIdx !== -1 ? (process.argv[onlyIdx + 1] || '') : null;
+const skipIdx   = process.argv.indexOf('--skip');
+const SKIP_ARG  = skipIdx !== -1 ? (process.argv[skipIdx + 1] || '') : null;
+const RETRY_FAILED = process.argv.includes('--retry-failed');
+const LIST_MODE    = process.argv.includes('--list');
+
+// ── --list: print all brokers + status from state.json, then exit ────────────
+if (LIST_MODE) {
+  const brokers = require('./brokers');
+  const state   = loadState();
+  const pad = (s, n) => String(s).padEnd(n);
+  console.log('\n' + pad('Broker', 40) + pad('Status', 18) + 'Last opt-out');
+  console.log('-'.repeat(80));
+  for (const b of brokers) {
+    const entry = state.optOuts && state.optOuts[b.name];
+    const status = entry ? (entry.lastSuccess ? 'success' : 'pending') : 'never run';
+    const last   = entry && entry.lastSuccess ? entry.lastSuccess.slice(0, 10) : '-';
+    console.log(pad(b.name, 40) + pad(status, 18) + last);
+  }
+  console.log('');
+  process.exit(0);
+}
 
 // ── --doctor: self-diagnose and exit ─────────────────────────────────────────
 if (DOCTOR) {
@@ -141,9 +167,34 @@ async function _mainBody() {
     return;
   }
 
-  const sorted = [...brokers]
-    .filter(b => b.method !== 'email')
-    .sort((a, b) => (a.priority || 9) - (b.priority || 9));
+  // ── Resolve --retry-failed broker set ──────────────────────────────────────
+  let retryFailedFromLog;
+  if (RETRY_FAILED) {
+    const log = loadLastLog(LOG_DIR);
+    if (!log) {
+      console.log('⚠️  --retry-failed: no previous log found in logs/ — running all brokers.');
+    } else {
+      retryFailedFromLog = extractFailedBrokers(log);
+      console.log(`🔄 --retry-failed: ${retryFailedFromLog.size} broker(s) from last log`);
+    }
+  }
+
+  const filterOpts = {
+    only:             ONLY_ARG,
+    skip:             SKIP_ARG,
+    retryFailedFromLog,
+  };
+
+  const sorted = applyFilter(
+    [...brokers]
+      .filter(b => b.method !== 'email')
+      .sort((a, b) => (a.priority || 9) - (b.priority || 9)),
+    filterOpts
+  );
+
+  if (ONLY_ARG || SKIP_ARG || RETRY_FAILED) {
+    console.log(`🔎 Filter applied — ${sorted.length} broker(s) will run`);
+  }
 
   console.log('\n── Explicit broker opt-outs ───────────────────────────────');
   for (const broker of sorted) {
