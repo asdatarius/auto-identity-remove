@@ -35,6 +35,8 @@ const SKIP_ARG  = skipIdx !== -1 ? (process.argv[skipIdx + 1] || '') : null;
 const RETRY_FAILED = process.argv.includes('--retry-failed');
 const LIST_MODE    = process.argv.includes('--list');
 
+const PENDING_MODE = process.argv.includes('--pending');
+
 // ── --list: print all brokers + status from state.json, then exit ────────────
 if (LIST_MODE) {
   const brokers = require('./brokers');
@@ -49,6 +51,26 @@ if (LIST_MODE) {
     console.log(pad(b.name, 40) + pad(status, 18) + last);
   }
   console.log('');
+  process.exit(0);
+}
+
+// ── --pending: print brokers awaiting email confirmation, then exit ──────────
+if (PENDING_MODE) {
+  const { getPendingConfirmations } = require('./lib/config');
+  const pending = getPendingConfirmations();
+  if (pending.length === 0) {
+    console.log('\nNo brokers are currently awaiting email confirmation.\n');
+  } else {
+    const pad = (s, n) => String(s).padEnd(n);
+    console.log('\n' + pad('Broker', 40) + pad('Pending since', 14) + 'Confirmation hint');
+    console.log('-'.repeat(90));
+    for (const p of pending) {
+      const since = p.since.slice(0, 10);
+      const snippet = p.snippet ? p.snippet.slice(0, 40) : '(check your inbox)';
+      console.log(pad(p.name, 40) + pad(since, 14) + snippet);
+    }
+    console.log(`\n${pending.length} broker(s) awaiting confirmation. Check your inbox for opt-out confirmation emails.\n`);
+  }
   process.exit(0);
 }
 
