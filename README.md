@@ -435,13 +435,21 @@ That said: if you're in a situation where even confirming your email address to 
 
 ---
 
-## California residents: DELETE Registry (August 2025)
+### California residents: DROP delete portal (SB 362)
 
-California is launching an official **Delete Me** opt-out registry on August 1, 2025. Once registered, data brokers are legally required to delete your info automatically - no individual form submissions needed for participating brokers.
+California's Delete Request and Opt-out Platform (DROP), established by SB 362,
+will eventually let residents submit a single deletion request that all
+California-registered data brokers must honor. The platform is operated by the
+California Privacy Protection Agency (CPPA).
 
-Register at: **[optoutregistry.oag.ca.gov](https://optoutregistry.oag.ca.gov)** (live August 1)
+**Status as of late 2025: not yet live.** The broker-side compliance deadline
+in SB 362 is August 1, 2026. CPPA has missed several preceding milestones and
+ongoing litigation (Data Brokers Association v. Bonta) may further delay things.
 
-**Recommended:** Register with the CA Delete Registry first, then run this script for the brokers that aren't covered.
+See: https://cppa.ca.gov/data_broker_registry/
+
+Until DROP is live, this tool falls back to per-broker opt-out flows for
+California-registered brokers.
 
 ---
 
