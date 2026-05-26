@@ -187,8 +187,19 @@ async function _mainBody() {
   // Launch persistent browser (reuses profile / saved logins)
   fs.mkdirSync(profileDir, { recursive: true });
 
+  // Headless mode: respect HEADLESS env var, else auto-detect.
+  // Default to false (headed) on platforms where a display is likely present.
+  // In Docker (no $DISPLAY on linux), default to headless: true so the tool actually runs.
+  const headlessEnv = process.env.HEADLESS;
+  const headless = headlessEnv === '1' || headlessEnv === 'true'
+    ? true
+    : headlessEnv === '0' || headlessEnv === 'false'
+    ? false
+    : (process.platform === 'linux' && !process.env.DISPLAY); // auto: headless in linux containers
+  console.log(`🖥  Browser mode: ${headless ? 'headless' : 'headed'}${headlessEnv === undefined && process.platform === 'linux' ? ' (auto-detected)' : ''}`);
+
   const context = await chromium.launchPersistentContext(profileDir, {
-    headless: false,
+    headless,
     viewport: { width: 1280, height: 900 },
     args: ['--no-first-run', '--disable-blink-features=AutomationControlled'],
     ignoreDefaultArgs: ['--enable-automation'],

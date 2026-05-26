@@ -54,7 +54,7 @@ test('sendText: does nothing when notify.textTo is absent', () => {
 
 test('sendText: calls osascript when notify.textTo is set', () => {
   const { calls, restore } = stubExecSync();
-  notify.sendText('hello', { textTo: '+15125550000' });
+  notify.sendText('hello', { textTo: '+15125550000' }, 'darwin');
   restore();
   assert.equal(calls.length, 1);
   assert.ok(calls[0].includes('osascript'));
@@ -63,7 +63,7 @@ test('sendText: calls osascript when notify.textTo is set', () => {
 
 test('sendText: escapes backslash and double-quote in message', () => {
   const { calls, restore } = stubExecSync();
-  notify.sendText('say \\"hi\\"', { textTo: '+1' });
+  notify.sendText('say \\"hi\\"', { textTo: '+1' }, 'darwin');
   restore();
   // Should not throw and should have called osascript
   assert.equal(calls.length, 1);
@@ -90,14 +90,20 @@ test('macNotify: swallows execSync errors silently', () => {
 
 // ─── openInBrowser ───────────────────────────────────────────────────────────
 
-test('openInBrowser: calls open for each URL', () => {
-  const { calls, restore } = stubExecSync();
-  notify.openInBrowser(['https://a.com', 'https://b.com']);
-  restore();
-  const openCalls = calls.filter(c => c.startsWith('open '));
-  assert.equal(openCalls.length, 2);
-  assert.ok(openCalls[0].includes('a.com'));
-  assert.ok(openCalls[1].includes('b.com'));
+test('openInBrowser: calls open for each URL on darwin', () => {
+  const spawnCalls = [];
+  const origSpawn = childProcess.spawn;
+  childProcess.spawn = (cmd, args, opts) => {
+    spawnCalls.push({ cmd, args });
+    return { unref: () => {} };
+  };
+  notify.openInBrowser(['https://a.com', 'https://b.com'], 'darwin');
+  childProcess.spawn = origSpawn;
+  assert.equal(spawnCalls.length, 2);
+  assert.equal(spawnCalls[0].cmd, 'open');
+  assert.ok(spawnCalls[0].args.includes('https://a.com'));
+  assert.equal(spawnCalls[1].cmd, 'open');
+  assert.ok(spawnCalls[1].args.includes('https://b.com'));
 });
 
 // ─── _webhookPost ─────────────────────────────────────────────────────────────
