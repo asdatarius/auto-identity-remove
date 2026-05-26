@@ -32,24 +32,33 @@ test('California DELETE Portal has priority 1', () => {
   assert.equal(entry.priority, 1);
 });
 
-test('California DELETE Portal has method direct-form', () => {
+test('California DELETE Portal has method manual', () => {
   const entry = brokers.find(b => b.name === 'California DELETE Portal');
-  assert.equal(entry.method, 'direct-form');
+  assert.equal(entry.method, 'manual', 'CA DROP portal is not yet live; method must be manual');
 });
 
-test('California DELETE Portal notes mention DELETE Act', () => {
+test('California DELETE Portal optOutUrl points to cppa.ca.gov', () => {
   const entry = brokers.find(b => b.name === 'California DELETE Portal');
-  assert.ok(entry.notes, 'notes field must exist');
-  assert.ok(entry.notes.includes('DELETE Act'), 'notes must mention DELETE Act');
+  assert.ok(
+    entry.optOutUrl && entry.optOutUrl.includes('cppa.ca.gov'),
+    `optOutUrl must reference cppa.ca.gov, got: ${entry.optOutUrl}`
+  );
 });
 
-test('California DELETE Portal has at least 5 formFields', () => {
+test('California DELETE Portal has confidence documented_not_live', () => {
   const entry = brokers.find(b => b.name === 'California DELETE Portal');
-  assert.ok(Array.isArray(entry.formFields), 'formFields must be an array');
-  assert.ok(entry.formFields.length >= 5, `expected at least 5 formFields, got ${entry.formFields.length}`);
+  assert.equal(
+    entry.confidence,
+    'documented_not_live',
+    'confidence must be documented_not_live to reflect that the DROP portal is not yet live'
+  );
 });
 
-test('California DELETE Portal captchaLikely is false', () => {
+test('California DELETE Portal note mentions August 1 2026 deadline', () => {
   const entry = brokers.find(b => b.name === 'California DELETE Portal');
-  assert.equal(entry.captchaLikely, false);
+  const noteText = (entry.note || entry.notes || '').toLowerCase();
+  assert.ok(
+    noteText.includes('2026'),
+    'note must mention the 2026 compliance deadline'
+  );
 });
