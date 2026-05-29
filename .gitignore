@@ -1,6 +1,11 @@
 node_modules/
 config.json
 state.json
+state.json.bak
+state.json.tmp
+serp-history.json
+data/serp-history.json
+inbox/
 logs/
 logs/snapshots/
 *.log
