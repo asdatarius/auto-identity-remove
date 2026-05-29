@@ -47,21 +47,28 @@ test('classifyNavError returns null for unrelated errors', () => {
 
 // ── isDeadStatus ─────────────────────────────────────────────────────────────
 
-test('isDeadStatus returns true for HTTP 400+', () => {
-  assert.equal(isDeadStatus(400), true);
-  assert.equal(isDeadStatus(403), true);
+test('isDeadStatus returns true for genuinely-dead HTTP codes (404, 410, 5xx)', () => {
+  // 404 Not Found and 410 Gone are permanently dead pages
   assert.equal(isDeadStatus(404), true);
   assert.equal(isDeadStatus(410), true);
+  // 5xx server errors are treated as dead (server is broken/gone)
   assert.equal(isDeadStatus(500), true);
   assert.equal(isDeadStatus(503), true);
 });
 
-test('isDeadStatus returns false for successful HTTP codes', () => {
+test('isDeadStatus returns false for live-site codes (2xx, 3xx, and blocking 4xx)', () => {
+  // Successful responses
   assert.equal(isDeadStatus(200), false);
   assert.equal(isDeadStatus(301), false);
   assert.equal(isDeadStatus(302), false);
   assert.equal(isDeadStatus(304), false);
   assert.equal(isDeadStatus(399), false);
+  // 4xx codes that indicate a LIVE site blocking us - not dead, just inaccessible
+  assert.equal(isDeadStatus(400), false);  // Bad request - site is live
+  assert.equal(isDeadStatus(401), false);  // Auth required - site is live
+  assert.equal(isDeadStatus(403), false);  // Bot block - site is live
+  assert.equal(isDeadStatus(429), false);  // Rate limit - site is live
+  assert.equal(isDeadStatus(451), false);  // Legal block - site is live
 });
 
 // ── loadDeadSet ───────────────────────────────────────────────────────────────

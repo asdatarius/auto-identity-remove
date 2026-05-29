@@ -82,11 +82,15 @@ function classifyNavError(message) {
 
 /**
  * Returns true when an HTTP status code indicates a dead/gone URL.
+ * 4xx codes that indicate a live-but-blocking site (403 bot-block, 429 rate-limit,
+ * 401 auth required, 451 legal block) are NOT treated as dead - the site exists and
+ * the opt-out may succeed on a retry. Only 404 (Not Found), 410 (Gone), and 5xx
+ * (server error) are considered permanently dead.
  * @param {number} code
  * @returns {boolean}
  */
 function isDeadStatus(code) {
-  return code >= 400;
+  return code === 404 || code === 410 || code >= 500;
 }
 
 // ─── Cookie banner + CCPA pop-up dismisser ────────────────────────────────────
@@ -177,8 +181,22 @@ async function handlePrivacyManager(page) {
 
 // ─── Generic form filler ──────────────────────────────────────────────────────
 
+/**
+ * Resolve the active person from config, supporting both single-person
+ * ({ person: {...} }) and multi-person ({ persons: [...] }) configs.
+ * Generic brokers are domain-level opt-outs; using persons[0] is acceptable
+ * and matches the prior single-person behavior.
+ * @returns {{ firstName, lastName, fullName, email, state, zip }}
+ */
+function activePerson() {
+  const cfg = getConfig();
+  if (cfg.person) return cfg.person;
+  if (Array.isArray(cfg.persons) && cfg.persons.length > 0) return cfg.persons[0];
+  throw new Error('No person/persons in config.json');
+}
+
 function getFieldMap() {
-  const { firstName: F, lastName: L, fullName: N, email: E, state: ST, zip: Z } = getConfig().person;
+  const { firstName: F, lastName: L, fullName: N, email: E, state: ST, zip: Z } = activePerson();
   return [
     // email (try first — many sites only need this)
     { selectors: ['input[type="email"]', 'input[name*="email" i]', 'input[placeholder*="email" i]'], value: E },
@@ -272,11 +290,14 @@ async function processGenericUrl(page, broker, state, dryRun = false, injectedDe
     const stamp = entry.lastAttempt || entry.lastSuccess;
     if (stamp) {
       const ageDays = (Date.now() - new Date(stamp).getTime()) / 86400000;
-      if (entry.pendingConfirmation) {
+      // Check the canonical pendingConfirm object (set by recordPendingConfirmation).
+      // The old pendingConfirmation boolean is intentionally ignored here - it is
+      // never written by current code and its presence should not alter behavior.
+      if (entry.pendingConfirm && entry.pendingConfirm.since) {
         if (ageDays < CONFIRM_RECHECK_DAYS) {
           return { status: 'skipped', detail: `pending confirm — retry in ${Math.max(0, Math.round(CONFIRM_RECHECK_DAYS - ageDays))}d` };
         }
-        // window elapsed → fall through to re-attempt
+        // confirmation window elapsed → fall through to re-attempt
       } else if (ageDays < RECHECK_DAYS) {
         return { status: 'skipped', detail: `${Math.round(ageDays)}d ago` };
       }
@@ -466,6 +487,9 @@ async function runGenericBrokers(context, explicitBrokerHosts, state, logResult,
     } else if (result.status === 'pending_confirm') {
       const { recordPendingConfirmation } = require('./lib/config');
       recordPendingConfirmation(broker.name, result.detail || '');
+    } else if (result.status === 'error' || result.status === 'dead') {
+      const { recordFailure } = require('./lib/config');
+      recordFailure(broker.name, 'error');
     }
 
     await page.waitForTimeout(400); // polite delay
