@@ -22,8 +22,10 @@ function makePage(links = [], gotoOptions = {}) {
       captured.url = url;
       captured.opts = opts;
     },
-    evaluate: async (fn, src) => {
-      const re = new RegExp(src);
+    evaluate: async (fn, args) => {
+      // findListingUrl now passes { src, flags } so that regex flags (e.g. 'i') are
+      // preserved inside page.evaluate. The stub mirrors that interface.
+      const re = new RegExp(args.src, args.flags);
       return links.filter(h => re.test(h));
     },
     _captured: captured,

@@ -1,0 +1,176 @@
+/**
+ * test/forms-bugs.test.js
+ *
+ * Tests for confirmed correctness bugs in lib/forms.js:
+ *   H4 - findListingUrl drops regex 'i' flag (case-insensitive patterns fail)
+ *   L1 - getByLabel fallback throws on regex metacharacters in keyword
+ */
+
+const { test } = require('node:test');
+const assert = require('node:assert/strict');
+const { findListingUrl } = require('../lib/forms');
+
+// ─── Bug H4: findListingUrl preserves the 'i' (case-insensitive) flag ─────────
+
+test('findListingUrl matches case-insensitively when listingPattern has /i flag', async () => {
+  // The bug: page.evaluate receives only broker.listingPattern.source, not flags.
+  // new RegExp(src) loses the 'i' flag, so uppercase URLs are missed.
+  const broker = {
+    searchUrl: 'https://example.com/search?q=test',
+    listingPattern: /example\.com\/People\//i,  // 'i' flag - should match lowercase too
+  };
+
+  // Simulated links - the path is lowercase "people" but pattern is "People" with /i
+  const links = [
+    'https://example.com/people/jane-doe-123',  // lowercase - only matches with /i
+    'https://example.com/contact',
+  ];
+
+  let capturedArgs = null;
+  const page = {
+    goto: async () => {},
+    evaluate: async (fn, args) => {
+      capturedArgs = args;
+      // Simulate what the browser does - apply the regex to the links
+      const re = new RegExp(args.src, args.flags);
+      return links.filter(h => re.test(h));
+    },
+  };
+
+  const result = await findListingUrl(page, broker);
+
+  // Verify the flags are passed through
+  assert.ok(capturedArgs !== null, 'evaluate should have been called');
+  assert.ok(
+    typeof capturedArgs === 'object' && capturedArgs !== null && !Array.isArray(capturedArgs),
+    `Expected args to be an object {src, flags}, got: ${JSON.stringify(capturedArgs)}`
+  );
+  assert.equal(capturedArgs.flags, 'i', `Expected flags='i' to be passed, got: ${capturedArgs.flags}`);
+  assert.equal(result, 'https://example.com/people/jane-doe-123', 'Should match case-insensitively');
+});
+
+test('findListingUrl still matches case-sensitively when listingPattern has no flags', async () => {
+  const broker = {
+    searchUrl: 'https://example.com/search',
+    listingPattern: /example\.com\/people\//,  // no 'i' flag
+  };
+
+  const links = ['https://example.com/people/jane-doe', 'https://example.com/PEOPLE/wrong'];
+  const page = {
+    goto: async () => {},
+    evaluate: async (fn, args) => {
+      const re = new RegExp(args.src, args.flags);
+      return links.filter(h => re.test(h));
+    },
+  };
+
+  const result = await findListingUrl(page, broker);
+  assert.equal(result, 'https://example.com/people/jane-doe');
+});
+
+test('findListingUrl passes both src and flags as an object to page.evaluate', async () => {
+  const broker = {
+    searchUrl: 'https://example.com/search',
+    listingPattern: /test\.com\//gi,  // 'g' and 'i' flags
+  };
+
+  let evaluateSecondArg = undefined;
+  const page = {
+    goto: async () => {},
+    evaluate: async (fn, arg) => {
+      evaluateSecondArg = arg;
+      return [];
+    },
+  };
+
+  await findListingUrl(page, broker);
+
+  assert.ok(
+    typeof evaluateSecondArg === 'object' && evaluateSecondArg !== null,
+    'Second arg to evaluate must be an object'
+  );
+  assert.equal(typeof evaluateSecondArg.src, 'string', 'Must have src string');
+  assert.equal(typeof evaluateSecondArg.flags, 'string', 'Must have flags string');
+  assert.equal(evaluateSecondArg.src, broker.listingPattern.source);
+  assert.equal(evaluateSecondArg.flags, broker.listingPattern.flags);
+});
+
+// ─── Bug L1: getByLabel fallback does not throw on regex metacharacters ────────
+
+test('fillForm does not throw when formFields key contains regex metacharacters', async () => {
+  const { fillForm } = require('../lib/forms');
+
+  // Selector with a metachar-containing keyword to trigger getByLabel fallback
+  // The key triggers getByLabel because it won't match any locator (count=0)
+  // and the keyword extracted from *="na(me" contains a '(' metachar.
+  const formFields = {
+    'input[name*="na(me" i]': 'Alice Smith',
+  };
+
+  let getByLabelCalled = false;
+  const page = {
+    locator: () => ({
+      first: () => ({
+        count: async () => 0,      // triggers getByLabel fallback
+        isVisible: async () => false,
+      }),
+    }),
+    getByLabel: (re) => {
+      getByLabelCalled = true;
+      // Should be called without throwing
+      return {
+        first: () => ({
+          fill: async () => {},
+          catch: async () => {},
+        }),
+      };
+    },
+  };
+
+  let error = null;
+  try {
+    await fillForm(page, formFields);
+  } catch (e) {
+    error = e;
+  }
+
+  assert.equal(error, null, `fillForm should not throw on metachar keyword, got: ${error?.message}`);
+});
+
+test('fillForm getByLabel fallback uses escaped regex so metachar does not cause SyntaxError', async () => {
+  const { fillForm } = require('../lib/forms');
+
+  // Keyword 'na(me' has '(' which would cause SyntaxError if not escaped
+  const formFields = {
+    'input[name*="na(me" i]': 'test value',
+  };
+
+  const regexesCreated = [];
+  const page = {
+    locator: () => ({
+      first: () => ({
+        count: async () => 0,
+        isVisible: async () => false,
+      }),
+    }),
+    getByLabel: (re) => {
+      regexesCreated.push(re);
+      return {
+        first: () => ({
+          fill: async () => {},
+        }),
+      };
+    },
+  };
+
+  await fillForm(page, formFields);
+
+  // If getByLabel was called, verify the regex was valid (no SyntaxError)
+  if (regexesCreated.length > 0) {
+    assert.ok(regexesCreated[0] instanceof RegExp, 'Should be a valid RegExp');
+    // The source should have the '(' escaped to '\('
+    assert.ok(regexesCreated[0].source.includes('\\('), `Metachar '(' should be escaped in: ${regexesCreated[0].source}`);
+  }
+  // Either getByLabel was not called (keyword filtered as ambiguous) or it was called with valid regex
+  // Either way, no exception is the success criterion
+});
