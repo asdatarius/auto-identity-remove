@@ -41,6 +41,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { spawn, execFile } = require('child_process');
+const { validateRunRequest } = require('./validate');
 
 const ROOT = path.resolve(__dirname, '..');
 const CONFIG = path.join(ROOT, 'config.json');
@@ -395,9 +396,12 @@ app.get('/api/run/stream', (req, res) => {
 });
 
 app.post('/api/run', (req, res) => {
-  const mode = (req.body && req.body.mode) || 'preview';
-  if (!MODE_ARGS[mode]) return res.status(400).json({ error: `unknown mode: ${mode}` });
-  const r = startRun(mode, { only: req.body && req.body.only, skip: req.body && req.body.skip });
+  // Validate mode (allow-list), reject flag-injection in --only/--skip, and
+  // require explicit confirm:true for live modes (real / retry / snapshot /
+  // confirm-emails). See dashboard/validate.js for the rationale.
+  const v = validateRunRequest(req.body, MODE_ARGS);
+  if (!v.ok) return res.status(v.status).json({ error: v.error });
+  const r = startRun(v.mode, { only: v.only, skip: v.skip });
   if (r.error) return res.status(409).json(r);
   res.json(r);
 });

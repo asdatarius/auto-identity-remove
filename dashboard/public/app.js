@@ -123,8 +123,12 @@ async function finishRun(code) {
   $('#runStatus').textContent = `last run exited ${code}`;
   await loadSummary(); await loadBrokers(); loadLogs();
 }
+// Live modes perform real, outward-facing actions; the server requires an
+// explicit confirm:true for them (defense against stray/forged/replayed requests).
+const LIVE_MODES = new Set(['real', 'retry', 'snapshot', 'confirm']);
 async function doRun(mode) {
   const body = { mode, only: $('#onlyInput').value.trim() || undefined, skip: $('#skipInput').value.trim() || undefined };
+  if (LIVE_MODES.has(mode)) body.confirm = true;
   setRunning(true, mode);
   // Start the run FIRST so the server resets its run state, THEN attach the
   // stream — otherwise a freshly-opened EventSource replays the *previous*
