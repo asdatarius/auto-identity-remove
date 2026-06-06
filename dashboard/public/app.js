@@ -1,7 +1,14 @@
 'use strict';
 const $ = s => document.querySelector(s);
 const $$ = s => [...document.querySelectorAll(s)];
-const api = (p, opts) => fetch('/api' + p, opts).then(r => r.json());
+// Fix 4: harden api() to tolerate non-JSON responses (surface a readable message).
+const api = async (p, opts) => {
+  const r = await fetch('/api' + p, opts);
+  const text = await r.text();
+  try { return JSON.parse(text); } catch (_) {
+    return { error: `Server returned non-JSON (HTTP ${r.status}): ${text.slice(0, 120)}` };
+  }
+};
 
 // Escape any data-influenced value before it goes into an innerHTML template.
 // Broker names, opt-out URLs, broker-site status snippets and log filenames all
@@ -10,6 +17,10 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g, c =>
   ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 // Only http(s) links are allowed as hrefs (blocks javascript:/data: scheme injection).
 const safeUrl = u => /^https?:\/\//i.test(u || '') ? u : null;
+
+// Mask sentinel used by the server when displaying secret config fields.
+// A field still showing this value was never edited - do not send it back.
+const MASK = '••••••••';
 
 let brokers = [], state = {};
 
@@ -37,17 +48,20 @@ function fmtDate(raw) {
   const d = new Date(raw);
   return isNaN(d.getTime()) ? String(raw) : d.toLocaleString();
 }
+// Fix 6: align status->badge mapping to real watcher vocab and server buckets.
+// Keep in sync with dashboard/validate.js classifyStatus.
 function statusFor(name) {
   const o = (state.optOuts && state.optOuts[name]) || null;
-  if (!o) return { key: 'none', label: '—', date: '' };
+  if (!o) return { key: 'none', label: '-', date: '' };
   const hist = Array.isArray(o.history) ? o.history : [];
   const raw = String(hist[hist.length - 1] || o.status || '').toLowerCase();
-  let key = 'none';
-  if (/success|removed|confirmed|opted/.test(raw)) key = 'ok';
-  else if (/pending|await|sent|unverified/.test(raw)) key = 'pending';
-  else if (/error|fail|dead/.test(raw)) key = 'err';
-  else if (/notfound|not_found|not listed/.test(raw)) key = 'notlisted';
-  return { key, label: raw || '—', date: fmtDate(o.lastSuccess || o.lastAttempt || '') };
+  let key = 'other';
+  if (raw === 'ok' || /success|removed|confirmed|opted/.test(raw)) key = 'ok';
+  else if (raw === 'notfound' || /not_found|not listed/.test(raw)) key = 'notfound';
+  else if (raw === 'pending' || raw === 'pending_confirm' || raw === 'unverified' || /await|sent/.test(raw)) key = 'pending';
+  else if (raw === 'manual') key = 'manual';
+  else if (raw === 'error' || raw === 'captcha_failed' || raw === 'dead' || /fail/.test(raw)) key = 'error';
+  return { key, label: raw || '-', date: fmtDate(o.lastSuccess || o.lastAttempt || '') };
 }
 function renderBrokers() {
   const q = $('#brokerSearch').value.toLowerCase();
@@ -76,10 +90,15 @@ function renderBrokers() {
     doRun('preview');
   }));
 }
+// Fix 4: add .catch to loadBrokers so a failed load shows an error, not a blank table.
 async function loadBrokers() {
-  [brokers, state] = await Promise.all([api('/brokers'), api('/state')]);
-  if (state && state.error) state = {};
-  renderBrokers();
+  try {
+    [brokers, state] = await Promise.all([api('/brokers'), api('/state')]);
+    if (state && state.error) state = {};
+    renderBrokers();
+  } catch (err) {
+    $('#brokerTable tbody').innerHTML = `<tr><td colspan="7" class="dim">failed to load brokers: ${esc(err && err.message || String(err))}</td></tr>`;
+  }
 }
 
 // ---------- run + console ----------
@@ -102,6 +121,9 @@ function appendLine(line) {
   consoleEl.scrollTop = consoleEl.scrollHeight;
 }
 let es = null;
+// Fix 3: safety timeout so the poll cannot run forever (30 minutes).
+const POLL_TIMEOUT_MS = 30 * 60 * 1000;
+let pollStartedAt = null;
 function closeStream() { if (es) { es.close(); es = null; } }
 function openStream() {
   closeStream();
@@ -109,6 +131,23 @@ function openStream() {
   es = new EventSource('/api/run/stream');
   es.onmessage = e => { try { appendLine(JSON.parse(e.data).line); } catch (_) {} };
   es.addEventListener('end', e => { finishRun(e.data); });
+  // Fix 3: handle SSE disconnects - reconcile run state via poll, finish if not running.
+  es.onerror = () => {
+    appendLine('ℹ️ stream disconnected - checking run status...');
+    closeStream();
+    api('/run/status').then(s => {
+      if (s && s.running) {
+        // Still running - reopen stream after a brief delay.
+        setTimeout(openStream, 2000);
+      } else {
+        appendLine('ℹ️ run ended (detected via status check)');
+        finishRun(s && s.exitCode != null ? s.exitCode : '?');
+      }
+    }).catch(() => {
+      appendLine('⚠️ could not reach server - stopping.');
+      finishRun('?');
+    });
+  };
 }
 function setRunning(on, mode) {
   $$('.run-controls .btn[data-mode]').forEach(b => b.disabled = on);
@@ -116,8 +155,21 @@ function setRunning(on, mode) {
   $('#runStatus').textContent = on ? `running: ${mode}…` : '';
 }
 let runPoll = null;
-function startRunPoll() { if (!runPoll) runPoll = setInterval(() => { loadSummary(); loadBrokers(); }, 7000); }
-function stopRunPoll() { if (runPoll) { clearInterval(runPoll); runPoll = null; } }
+function startRunPoll() {
+  if (!runPoll) {
+    pollStartedAt = Date.now();
+    runPoll = setInterval(() => {
+      // Fix 3: safety timeout so the poll cannot run forever.
+      if (pollStartedAt && (Date.now() - pollStartedAt) > POLL_TIMEOUT_MS) {
+        appendLine('⚠️ run poll safety timeout reached - stopping.');
+        finishRun('timeout');
+        return;
+      }
+      loadSummary(); loadBrokers();
+    }, 7000);
+  }
+}
+function stopRunPoll() { if (runPoll) { clearInterval(runPoll); runPoll = null; } pollStartedAt = null; }
 async function finishRun(code) {
   setRunning(false); stopRunPoll(); closeStream();
   $('#runStatus').textContent = `last run exited ${code}`;
@@ -126,28 +178,60 @@ async function finishRun(code) {
 // Live modes perform real, outward-facing actions; the server requires an
 // explicit confirm:true for them (defense against stray/forged/replayed requests).
 const LIVE_MODES = new Set(['real', 'retry', 'snapshot', 'confirm']);
+// Fix 2: modes that honor --only/--skip filters (keep in sync with dashboard/validate.js).
+const FILTER_MODES = new Set(['preview', 'real', 'retry']);
+// Fix 1: pendingMode holds the mode chosen by a live-mode button until the modal is confirmed.
+let pendingMode = null;
 async function doRun(mode) {
-  const body = { mode, only: $('#onlyInput').value.trim() || undefined, skip: $('#skipInput').value.trim() || undefined };
-  if (LIVE_MODES.has(mode)) body.confirm = true;
-  setRunning(true, mode);
-  // Start the run FIRST so the server resets its run state, THEN attach the
-  // stream — otherwise a freshly-opened EventSource replays the *previous*
-  // run's buffer and a stale 'end' event, desyncing the controls.
-  const r = await api('/run', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-  if (r && r.error) { appendLine('⚠️ ' + r.error); setRunning(false); return; }
-  openStream(); startRunPoll();
+  try {
+    const only = $('#onlyInput').value.trim();
+    const skip = $('#skipInput').value.trim();
+    const body = { mode };
+    if (FILTER_MODES.has(mode)) {
+      if (only) body.only = only;
+      if (skip) body.skip = skip;
+    } else if (only || skip) {
+      // Fix 2: inform user that filters are ignored for this mode.
+      appendLine('ℹ️ --only/--skip are ignored for ' + mode + ' mode');
+    }
+    if (LIVE_MODES.has(mode)) body.confirm = true;
+    setRunning(true, mode);
+    // Start the run FIRST so the server resets its run state, THEN attach the
+    // stream - otherwise a freshly-opened EventSource replays the *previous*
+    // run's buffer and a stale 'end' event, desyncing the controls.
+    const r = await api('/run', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+    if (r && r.error) { appendLine('⚠️ ' + r.error); setRunning(false); return; }
+    openStream(); startRunPoll();
+  } catch (err) {
+    // Fix 4: wrap doRun in try/catch.
+    appendLine('⚠️ run request failed: ' + (err && err.message || String(err)));
+    setRunning(false);
+    stopRunPoll();
+  }
 }
 $$('.run-controls .btn[data-mode]').forEach(btn => btn.addEventListener('click', () => {
   const mode = btn.dataset.mode;
-  if (mode === 'real') { openModal(); return; }
+  // Fix 1: ALL live modes go through the confirm modal, not just 'real'.
+  if (LIVE_MODES.has(mode)) { pendingMode = mode; openModal(mode); return; }
   doRun(mode);
 }));
 
 // ---------- confirm modal (focus-managed, Escape to cancel) ----------
 const modal = $('#confirmModal');
 let modalReturnFocus = null;
-function openModal() {
+// Fix 1: human-readable labels for each live mode shown in the modal.
+const MODE_LABELS = {
+  real: 'Run real opt-outs',
+  retry: 'Retry failed opt-outs',
+  snapshot: 'Real run + snapshots',
+  confirm: 'Confirm emails',
+};
+// Fix 1: openModal receives the pending mode so it can show a descriptive action line.
+function openModal(mode) {
   modalReturnFocus = document.activeElement;
+  // Set the dynamic action description using textContent (no unescaped HTML).
+  const label = MODE_LABELS[mode] || mode;
+  $('#confirmAction').textContent = 'Action: ' + label;
   modal.classList.remove('hidden');
   $('#cancelReal').focus();
   document.addEventListener('keydown', modalKeydown);
@@ -156,6 +240,7 @@ function closeModal() {
   modal.classList.add('hidden');
   document.removeEventListener('keydown', modalKeydown);
   if (modalReturnFocus && modalReturnFocus.focus) modalReturnFocus.focus();
+  pendingMode = null;
 }
 function modalKeydown(e) {
   if (e.key === 'Escape') { closeModal(); return; }
@@ -166,7 +251,8 @@ function modalKeydown(e) {
     f[(i + (e.shiftKey ? f.length - 1 : 1)) % f.length].focus();
   }
 }
-$('#confirmReal').addEventListener('click', () => { closeModal(); doRun('real'); });
+// Fix 1: confirm button runs doRun(pendingMode), covering all live modes.
+$('#confirmReal').addEventListener('click', () => { const m = pendingMode; closeModal(); if (m) doRun(m); });
 $('#cancelReal').addEventListener('click', closeModal);
 $('#stopBtn').addEventListener('click', () => api('/run/stop', { method: 'POST' }));
 $('#brokerSearch').addEventListener('input', renderBrokers);
@@ -237,7 +323,9 @@ $('#saveConfig').addEventListener('click', async () => {
   const cfg = {};
   $$('#configForm input').forEach(inp => {
     let v = inp.value;
-    if (v === '') return;
+    // Fix 5: skip only the mask sentinel (untouched secret fields - preserve on server).
+    // All other values including empty string are sent so users can clear non-secret fields.
+    if (v === MASK) return;
     if (inp.name === 'person.aliases') v = v.split(',').map(s => s.trim()).filter(Boolean);
     if (inp.name === 'email.smtp.port') v = parseInt(v, 10) || v;
     setPath(cfg, inp.name, v);

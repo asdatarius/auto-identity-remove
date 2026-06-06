@@ -35,9 +35,10 @@
         <span class="dim adv-label">advanced:</span>
         <button class="btn" data-mode="retry" title="Re-run only brokers that failed last time">↻ Retry failed</button>
         <button class="btn" data-mode="serp" title="Search engine scan for residual listings">🔎 SERP scan</button>
-        <button class="btn" data-mode="snapshot" title="Save a snapshot of current state">📸 Snapshot</button>
+        <button class="btn" data-mode="snapshot" title="Runs REAL opt-out submissions AND saves a page snapshot per broker.">📸 Real run + snapshots</button>
       </div>
-      <pre class="console" id="console" role="log" aria-live="polite" aria-atomic="false" aria-label="Run output"><span class="dim">Console output appears here. Pick an action above.</span></pre>
+      <!-- aria-live="off": high-frequency stream would flood screen readers; run status is announced via #runStatus -->
+      <pre class="console" id="console" role="log" aria-live="off" aria-atomic="false" aria-label="Run output"><span class="dim">Console output appears here. Pick an action above.</span></pre>
     </section>
 
     <nav class="tabs" role="tablist" aria-label="Dashboard sections">
@@ -152,11 +153,12 @@
 
   <div class="modal hidden" id="confirmModal">
     <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="confirmTitle" aria-describedby="confirmDesc">
-      <h3 id="confirmTitle">⚡ Submit real opt-outs?</h3>
+      <h3 id="confirmTitle">⚡ Confirm live action?</h3>
+      <p id="confirmAction" class="dim" style="font-weight:600;margin-bottom:4px;"></p>
       <p id="confirmDesc">This drives a real browser and submits opt-out requests to live data-broker sites using your configured PII. This is not a drill.</p>
       <div class="modal-actions">
         <button class="btn" id="cancelReal">Cancel</button>
-        <button class="btn btn-danger" id="confirmReal">Yes, run for real</button>
+        <button class="btn btn-danger" id="confirmReal">Yes, proceed</button>
       </div>
     </div>
   </div>
