@@ -76,7 +76,10 @@ input:focus { outline: none; border-color: var(--accent); }
 .badge { font-size: 11px; padding: 2px 8px; border-radius: 999px; font-weight: 600; }
 .badge.ok { background: #102a17; color: #7ee787; } .badge.pending { background: #2b2410; color: #f0c674; }
 .badge.manual { background: #211633; color: #d2a8ff; } .badge.none { background: #1b2029; color: var(--dim); }
-.badge.err { background: #2d1416; color: #ff7b72; } .badge.notlisted { background: #0f2417; color: #6fcf97; }
+/* error/notfound/other: aligned to watcher vocab (keep in sync with statusFor in app.js) */
+.badge.error, .badge.err { background: #2d1416; color: #ff7b72; }
+.badge.notfound, .badge.notlisted { background: #0f2417; color: #6fcf97; }
+.badge.other { background: #1b2029; color: var(--dim); }
 .method { font-family: var(--mono); font-size: 11.5px; color: var(--dim); }
 
 .config-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
