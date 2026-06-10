@@ -44,6 +44,7 @@ const BREACH_CHECK    = process.argv.includes('--breach-check');
 const NO_CAPSOLVER    = process.argv.includes('--no-capsolver');
 const RESUME          = process.argv.includes('--resume');
 const SNAPSHOT        = process.argv.includes('--snapshot');
+const REPORT          = process.argv.includes('--report');
 
 // ── Credit / identity freeze guided checklist ────────────────────────────────
 const FREEZE_LIST = process.argv.includes('--freeze');
@@ -295,6 +296,97 @@ if (CONFIRM_EMAILS) {
     console.error('confirm-emails error:', err.message);
     process.exit(1);
   });
+} else if (REPORT) {
+
+// ── --report: build monthly PDF + emailable HTML report and exit ─────────────
+const brokers = require('./brokers');
+const { buildReportModel, renderReportHtml, renderReportPdf, reportPdfPath, REPORT_DIR } = require('./lib/report');
+
+let chromiumForReport;
+try {
+  ({ chromium: chromiumForReport } = require('playwright'));
+} catch (_) {
+  const fallback = path.join(os.homedir(), '.openclaw', 'plugins', 'node_modules', 'playwright');
+  ({ chromium: chromiumForReport } = require(fallback));
+}
+
+const reportConfig = loadConfig();
+const profileDirForReport = (reportConfig.profileDir || '~/.config/auto-identity-remove')
+  .replace(/^~(?=\/|$)/, os.homedir());
+
+const REPORT_LOCK_PATH = STATE_PATH + '.lock';
+try {
+  lock.acquire(REPORT_LOCK_PATH);
+} catch (err) {
+  const pidMatch = err.message.match(/pid (\d+)/);
+  console.error(`Another instance is running, pid=${pidMatch ? pidMatch[1] : '?'}. Exiting.`);
+  process.exit(1);
+}
+
+(async () => {
+  const state = loadState();
+  const model = buildReportModel({ state, brokers });
+  const html = renderReportHtml(model);
+
+  fs.mkdirSync(REPORT_DIR, { recursive: true });
+  const outPath = reportPdfPath(new Date());
+
+  const context = await chromiumForReport.launchPersistentContext(profileDirForReport, {
+    headless: true,
+    viewport: { width: 1280, height: 900 },
+  });
+
+  try {
+    await renderReportPdf({ html, outPath, context });
+    console.log(`\nReport PDF written: ${outPath}`);
+
+    const smtp = reportConfig.email && reportConfig.email.smtp;
+    let emailed = false;
+    if (smtp && reportConfig.notify && reportConfig.notify.emailReportTo) {
+      let nodemailer;
+      try {
+        nodemailer = require('nodemailer');
+      } catch (_) {
+        nodemailer = null;
+      }
+      if (nodemailer) {
+        try {
+          const transporter = nodemailer.createTransport({
+            host: smtp.host,
+            port: smtp.port || 587,
+            secure: (smtp.port || 587) === 465,
+            auth: { user: smtp.user, pass: smtp.pass },
+          });
+          await transporter.sendMail({
+            from: smtp.from || smtp.user,
+            to: reportConfig.notify.emailReportTo,
+            subject: `Privacy report - ${model.period}`,
+            html,
+            attachments: [{ path: outPath }],
+          });
+          emailed = true;
+          console.log(`Report emailed to ${reportConfig.notify.emailReportTo}`);
+        } catch (err) {
+          console.error(`Report email failed: ${err.message.slice(0, 80)}`);
+        }
+      }
+    }
+
+    if (!emailed) {
+      desktopNotify('Privacy report', `Monthly report saved: ${outPath}`);
+      console.log(`Report saved (no SMTP configured or email failed). Actions needed: ${model.actionsNeeded.length}`);
+    }
+  } finally {
+    await context.close().catch(() => {});
+    lock.release(REPORT_LOCK_PATH);
+  }
+  process.exit(0);
+})().catch(err => {
+  lock.release(REPORT_LOCK_PATH);
+  console.error('report error:', err.message);
+  process.exit(1);
+});
+
 } else {
 
 // ── --doctor: self-diagnose and exit ─────────────────────────────────────────
