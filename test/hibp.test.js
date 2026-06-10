@@ -81,3 +81,87 @@ test('severityOf returns low for empty / missing dataClasses', () => {
   assert.equal(severityOf(undefined), 'low');
   assert.equal(severityOf(null), 'low');
 });
+
+// ─── checkBreaches ───────────────────────────────────────────────────────────
+
+const HIBP_200_BODY = [
+  {
+    Name: 'Adobe',
+    Title: 'Adobe',
+    Domain: 'adobe.com',
+    BreachDate: '2013-10-04',
+    DataClasses: ['Email addresses', 'Passwords', 'Usernames'],
+  },
+  {
+    Name: 'Acme',
+    Title: 'Acme Marketing',
+    Domain: 'acme.example',
+    BreachDate: '2019-01-01',
+    DataClasses: ['Email addresses', 'Phone numbers'],
+  },
+];
+
+test('checkBreaches maps a 200 response to result shape with severity', async () => {
+  const fetchImpl = makeFetch({ status: 200, json: HIBP_200_BODY });
+  const result = await checkBreaches('jane@example.com', { apiKey: 'k', fetchImpl });
+  assert.equal(result.length, 2);
+  assert.deepEqual(result[0], {
+    name: 'Adobe',
+    domain: 'adobe.com',
+    breachDate: '2013-10-04',
+    dataClasses: ['Email addresses', 'Passwords', 'Usernames'],
+    severity: 'high',
+  });
+  assert.equal(result[1].severity, 'medium');
+});
+
+test('checkBreaches sends hibp-api-key header, User-Agent, and truncateResponse=false', async () => {
+  const fetchImpl = makeFetch({ status: 200, json: [] });
+  await checkBreaches('jane@example.com', { apiKey: 'secret-key', fetchImpl });
+  assert.equal(fetchImpl.calls.length, 1);
+  const { url, init } = fetchImpl.calls[0];
+  assert.ok(url.startsWith('https://haveibeenpwned.com/api/v3/breachedaccount/'));
+  assert.ok(url.includes('truncateResponse=false'));
+  assert.ok(url.includes(encodeURIComponent('jane@example.com')));
+  assert.equal(init.headers['hibp-api-key'], 'secret-key');
+  assert.equal(init.headers['User-Agent'], 'auto-identity-remove');
+});
+
+test('checkBreaches returns [] on 404 (no breaches found)', async () => {
+  const fetchImpl = makeFetch({ status: 404 });
+  const result = await checkBreaches('clean@example.com', { apiKey: 'k', fetchImpl });
+  assert.deepEqual(result, []);
+});
+
+test('checkBreaches throws on 401 (bad key)', async () => {
+  const fetchImpl = makeFetch({ status: 401 });
+  await assert.rejects(
+    () => checkBreaches('jane@example.com', { apiKey: 'bad', fetchImpl }),
+    /invalid API key \(401\)/
+  );
+});
+
+test('checkBreaches throws on 429 (rate limited)', async () => {
+  const fetchImpl = makeFetch({ status: 429 });
+  await assert.rejects(
+    () => checkBreaches('jane@example.com', { apiKey: 'k', fetchImpl }),
+    /rate limited \(429\)/
+  );
+});
+
+test('checkBreaches throws on unexpected status', async () => {
+  const fetchImpl = makeFetch({ status: 503 });
+  await assert.rejects(
+    () => checkBreaches('jane@example.com', { apiKey: 'k', fetchImpl }),
+    /unexpected status 503/
+  );
+});
+
+test('checkBreaches throws when apiKey missing', async () => {
+  const fetchImpl = makeFetch({ status: 200, json: [] });
+  await assert.rejects(
+    () => checkBreaches('jane@example.com', { fetchImpl }),
+    /missing API key/
+  );
+  assert.equal(fetchImpl.calls.length, 0, 'must not call fetch without a key');
+});
