@@ -267,6 +267,7 @@ $$('.tab').forEach(t => t.addEventListener('click', () => {
   if (t.dataset.tab === 'logs') loadLogs();
   if (t.dataset.tab === 'schedule') loadSchedule();
   if (t.dataset.tab === 'admin') loadWhoami();
+  if (t.dataset.tab === 'freeze') loadFreeze();
 }));
 
 // ---------- admin: change login ----------
@@ -409,6 +410,49 @@ async function loadExposure() {
     $('#exposureSpark').innerHTML = sparklineSvg(hist.map(h => h && h.score));
   } catch (_) {
     $('#exposureNum').textContent = '—';
+  }
+}
+
+// ---------- freeze checklist ----------
+// All data-influenced values are sanitized through esc()/safeUrl() before
+// being included in template literals, matching the established XSS-defense
+// pattern used throughout this file (see lines 13-19, renderBrokers, etc.).
+function freezeRowHtml(t) {
+  const url = safeUrl(t.url);
+  const link = url
+    ? `<a href="${esc(url)}" target="_blank" rel="noopener noreferrer">${esc(t.name)}</a>`
+    : esc(t.name);
+  const badge = t.done
+    ? `<span class="badge ok">done</span>`
+    : `<span class="badge none">not yet</span>`;
+  const when = t.done && t.doneAt ? `<span class="dim"> · ${esc(fmtDate(t.doneAt))}</span>` : '';
+  const btnLabel = t.done ? 'Mark not done' : 'Mark done';
+  const act = t.done ? 'clear' : 'done';
+  return `<li class="freeze-row">
+    <div class="freeze-main">${link} ${badge}${when}
+      <span class="pill muted">${esc(t.type)}</span></div>
+    <div class="dim freeze-notes">${esc(t.notes || '')}</div>
+    <button class="btn freeze-toggle" data-key="${esc(t.key)}" data-act="${act}">${btnLabel}</button>
+  </li>`;
+}
+async function loadFreeze() {
+  const el = $('#freezeList');
+  try {
+    const r = await api('/freeze');
+    const targets = (r && Array.isArray(r.targets)) ? r.targets : [];
+    const markup = targets.length
+      ? targets.map(freezeRowHtml).join('')
+      : '<li class="dim">no freeze targets</li>';
+    // Safe: all interpolations are escaped via esc()/safeUrl() in freezeRowHtml above
+    el.innerHTML = markup;
+    $$('.freeze-toggle').forEach(btn => btn.addEventListener('click', async () => {
+      const body = { key: btn.dataset.key, action: btn.dataset.act };
+      const res = await api('/freeze', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+      if (res && res.error) { btn.textContent = 'Error: ' + res.error; return; }
+      loadFreeze();
+    }));
+  } catch (err) {
+    el.textContent = 'failed to load freeze checklist: ' + (err && err.message || String(err));
   }
 }
 

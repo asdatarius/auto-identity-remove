@@ -57,6 +57,7 @@
 
     <nav class="tabs" role="tablist" aria-label="Dashboard sections">
       <button class="tab active" id="tabbtn-brokers" role="tab" aria-selected="true" aria-controls="tab-brokers" data-tab="brokers">Brokers</button>
+      <button class="tab" id="tabbtn-freeze" role="tab" aria-selected="false" aria-controls="tab-freeze" data-tab="freeze">Freeze</button>
       <button class="tab" id="tabbtn-config" role="tab" aria-selected="false" aria-controls="tab-config" data-tab="config">Config</button>
       <button class="tab" id="tabbtn-schedule" role="tab" aria-selected="false" aria-controls="tab-schedule" data-tab="schedule">Schedule</button>
       <button class="tab" id="tabbtn-logs" role="tab" aria-selected="false" aria-controls="tab-logs" data-tab="logs">Logs</button>
@@ -77,6 +78,12 @@
         <thead><tr><th>Broker</th><th>Method</th><th>Pri</th><th>Scope</th><th>Status</th><th>Last action</th><th></th></tr></thead>
         <tbody></tbody>
       </table>
+    </section>
+
+    <section class="card tab-panel hidden" id="tab-freeze" role="tabpanel" aria-labelledby="tabbtn-freeze">
+      <h3>Credit / identity freeze checklist</h3>
+      <p class="dim">Freezing your credit is the single highest-impact privacy action. Each target requires identity verification, so this is a guided checklist - open the link, complete the freeze, then mark it done. Nothing here is automated.</p>
+      <ul class="freeze-list" id="freezeList"><li class="dim">loading...</li></ul>
     </section>
 
     <section class="card tab-panel hidden" id="tab-config" role="tabpanel" aria-labelledby="tabbtn-config">
