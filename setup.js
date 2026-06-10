@@ -20,8 +20,10 @@ const { execSync } = require('child_process');
 
 const { installSchedule } = require('./lib/scheduler');
 
-const CONFIG_PATH = path.join(__dirname, 'config.json');
-const STATE_PATH  = path.join(__dirname, 'state.json');
+// Honour the same AIDR_* overrides as lib/config.js — setup must write the
+// config to wherever the watcher will actually read it.
+const CONFIG_PATH = process.env.AIDR_CONFIG || path.join(__dirname, 'config.json');
+const STATE_PATH  = process.env.AIDR_STATE  || path.join(__dirname, 'state.json');
 
 // ─── Prompt helper ────────────────────────────────────────────────────────────
 // rl is created lazily inside main() so that requiring this module for its

@@ -20,7 +20,9 @@ let _cachedConfig = null;
 function _getConfig() {
   if (_cachedConfig) return _cachedConfig;
   try {
-    _cachedConfig = require('./config.json');
+    // Honour the same AIDR_CONFIG override as lib/config.js — in a container
+    // config.json lives on the mounted data dir, not next to this file.
+    _cachedConfig = require(process.env.AIDR_CONFIG || './config.json');
   } catch (_) {
     _cachedConfig = { person: {}, persons: [], email: {} };
   }

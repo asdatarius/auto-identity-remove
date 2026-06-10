@@ -44,9 +44,11 @@ const { spawn, execFile } = require('child_process');
 const { validateRunRequest } = require('./validate');
 
 const ROOT = path.resolve(__dirname, '..');
-const CONFIG = path.join(ROOT, 'config.json');
-const STATE = path.join(ROOT, 'state.json');
-const LOGS = path.join(ROOT, 'logs');
+// Honour the same AIDR_* path overrides as lib/config.js/watcher.js — otherwise
+// the dashboard reads/writes different files than the watcher in a container.
+const CONFIG = process.env.AIDR_CONFIG || path.join(ROOT, 'config.json');
+const STATE = process.env.AIDR_STATE || path.join(ROOT, 'state.json');
+const LOGS = process.env.AIDR_LOG_DIR || path.join(ROOT, 'logs');
 const BROKERS = path.join(ROOT, 'brokers.js');
 
 const PORT = parseInt(process.env.AIDR_PORT || '8080', 10);

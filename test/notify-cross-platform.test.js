@@ -129,7 +129,7 @@ test('desktopNotify: returns without throwing even when all underlying calls fai
 test('openInBrowser: on linux calls xdg-open via spawn for each URL', () => {
   const { calls, restore } = stubSpawn();
 
-  notify.openInBrowser(['https://a.com', 'https://b.com'], 'linux');
+  notify.openInBrowser(['https://a.com', 'https://b.com'], 'linux', { DISPLAY: ':0' });
 
   restore();
 
@@ -138,6 +138,27 @@ test('openInBrowser: on linux calls xdg-open via spawn for each URL', () => {
   assert.ok(calls[0].args.includes('https://a.com'));
   assert.equal(calls[1].cmd, 'xdg-open');
   assert.ok(calls[1].args.includes('https://b.com'));
+});
+
+test('openInBrowser: on linux with Wayland-only session still opens URLs', () => {
+  const { calls, restore } = stubSpawn();
+
+  notify.openInBrowser(['https://a.com'], 'linux', { WAYLAND_DISPLAY: 'wayland-0' });
+
+  restore();
+
+  assert.equal(calls.length, 1, 'should spawn once');
+  assert.equal(calls[0].cmd, 'xdg-open');
+});
+
+test('openInBrowser: on headless linux (no DISPLAY/WAYLAND_DISPLAY) skips spawning', () => {
+  const { calls, restore } = stubSpawn();
+
+  notify.openInBrowser(['https://a.com'], 'linux', {});
+
+  restore();
+
+  assert.equal(calls.length, 0, 'should not spawn');
 });
 
 // ─── openInBrowser: win32 ────────────────────────────────────────────────────
@@ -166,7 +187,7 @@ test('openInBrowser: swallows spawn errors and does not throw', () => {
   const origSpawn = childProcess.spawn;
   childProcess.spawn = () => { throw new Error('spawn failed'); };
 
-  assert.doesNotThrow(() => notify.openInBrowser(['https://a.com'], 'linux'));
+  assert.doesNotThrow(() => notify.openInBrowser(['https://a.com'], 'linux', { DISPLAY: ':0' }));
   assert.doesNotThrow(() => notify.openInBrowser(['https://a.com'], 'win32'));
   assert.doesNotThrow(() => notify.openInBrowser(['https://a.com'], 'darwin'));
 

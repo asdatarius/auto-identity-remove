@@ -5,8 +5,9 @@
 set -e
 cd "$(dirname "$0")"
 
-if [ ! -f config.json ]; then
-  echo "❌ config.json not found. Run: node setup.js"
+CONFIG_FILE="${AIDR_CONFIG:-config.json}"
+if [ ! -f "$CONFIG_FILE" ]; then
+  echo "❌ $CONFIG_FILE not found. Run: node setup.js"
   exit 1
 fi
 

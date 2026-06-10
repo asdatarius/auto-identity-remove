@@ -14,7 +14,7 @@ const os   = require('os');
 const { STATE_PATH, RECHECK_DAYS, loadConfig, loadState, saveState, recordSuccess, setDryRun, getPersonsFromConfig, loadCheckpoint, clearCheckpoint } = require('./lib/config');
 const { results, logResult, buildSummary, setDefunctBrokers } = require('./lib/logger');
 const { findDefunct, DEFUNCT_THRESHOLD } = require('./lib/defunct');
-const { sendText, desktopNotify, openInBrowser } = require('./lib/notify');
+const { openInBrowser, dispatchNotify } = require('./lib/notify');
 const brokerRunner = require('./lib/broker-runner');
 const { sendOptOutEmails } = require('./lib/email');
 const lock = require('./lib/lock');
@@ -180,7 +180,7 @@ if (INSTALL_SCHEDULER) {
   const { installScheduleForPlatform } = require('./lib/scheduler');
   const { getPlatform } = require('./lib/platform');
   const scriptPath = path.join(__dirname, 'run.sh');
-  const logDir     = path.join(__dirname, 'logs');
+  const logDir     = process.env.AIDR_LOG_DIR || path.join(__dirname, 'logs');
   const platform   = getPlatform();
   const result     = installScheduleForPlatform({ platform, scriptPath, logDir });
   console.log(`\nScheduler installed via ${result.method}:`);
@@ -189,7 +189,6 @@ if (INSTALL_SCHEDULER) {
 }
 
 const config = loadConfig();
-const { notify } = config;
 const profileDir = (config.profileDir || '~/.config/auto-identity-remove')
   .replace(/^~(?=\/|$)/, os.homedir());
 const state = loadState();
@@ -224,7 +223,7 @@ if (process.env.PLAYWRIGHT_BROWSERS_PATH === undefined) {
     : path.join(os.homedir(), '.cache', 'ms-playwright');
 }
 
-const LOG_DIR = path.join(__dirname, 'logs');
+const LOG_DIR = process.env.AIDR_LOG_DIR || path.join(__dirname, 'logs');
 fs.mkdirSync(LOG_DIR, { recursive: true });
 const logFile = path.join(LOG_DIR, `run-${new Date().toISOString().slice(0, 10)}.json`);
 const stamp = () => new Date().toLocaleTimeString();
@@ -361,6 +360,20 @@ async function _mainBody() {
     }
   }
 
+  // Email opt-outs (no browser needed — skipped in verify mode).
+  // Called once before the per-person loop: sendOptOutEmails already iterates
+  // all persons internally, so calling it inside the loop would send N× the
+  // emails for an N-person config.
+  // Also skipped in dry-run/preview: these are real SMTP sends, and dry-run
+  // suppresses state writes, so a send here would both violate the "nothing
+  // is submitted" promise and be re-sent on the next real run.
+  if (!VERIFY && !DRY_RUN) {
+    console.log('── Email opt-outs ─────────────────────────────────────────');
+    await sendOptOutEmails(brokers, config);
+  } else if (!VERIFY) {
+    console.log('── Email opt-outs skipped (dry-run/preview) ───────────────');
+  }
+
   for (const person of persons) {
     if (persons.length > 1) {
       console.log(`\n${'='.repeat(54)}`);
@@ -369,12 +382,6 @@ async function _mainBody() {
     }
 
     brokerRunner.configure({ dryRun: DRY_RUN, preview: PREVIEW, person, capsolver: config.capsolver, noCapsolver: NO_CAPSOLVER, snapshot: SNAPSHOT, personCount: persons.length });
-
-    // Email opt-outs (no browser needed — skipped in verify mode)
-    if (!VERIFY) {
-      console.log('── Email opt-outs ─────────────────────────────────────────');
-      await sendOptOutEmails(brokers, config);
-    }
 
     const filterOpts = {
       only:             ONLY_ARG,
@@ -493,16 +500,17 @@ async function _mainBody() {
   console.log(`\n📄 Log: ${logFile}`);
   console.log(`💾 State: ${STATE_PATH}\n`);
 
-  // iMessage
+  // Notify across all configured channels: macOS iMessage + toast, Linux toast,
+  // and (any OS) webhook + Telegram. dispatchNotify reads config.notify, so it
+  // covers headless NAS runs where iMessage/desktop toasts don't exist.
   const totalProcessed = results.succeeded.length + results.skipped.length + results.notFound.length + results.captchaFailed.length + results.manual.length + results.errors.length;
   const short = `🔒 Privacy Watcher (${new Date().toLocaleDateString()}):\n✅ Removed: ${results.succeeded.length}\n⏭  Skipped: ${results.skipped.length}\n📋 Manual: ${results.captchaFailed.length + results.manual.length}\n📊 Total: ${totalProcessed} brokers checked`;
-  sendText(short, notify);
-  desktopNotify('Privacy Watcher', `Done — ${results.succeeded.length} removed, ${results.captchaFailed.length + results.manual.length} need manual action (${totalProcessed} total)`);
+  await dispatchNotify(short, config);
 }
 
-main().catch(err => {
+main().catch(async err => {
   console.error('\nFatal:', err.message);
-  sendText(`❌ Privacy Watcher crashed: ${err.message.slice(0, 100)}`, notify);
+  try { await dispatchNotify(`❌ Privacy Watcher crashed: ${err.message.slice(0, 100)}`, config); } catch (_) {}
   process.exit(1);
 });
 
