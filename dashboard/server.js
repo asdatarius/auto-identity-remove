@@ -49,10 +49,13 @@ const { FREEZE_TARGETS, TARGET_KEYS, getFreezeStatus } = require('../lib/freeze'
 
 const ROOT = path.resolve(__dirname, '..');
 const CONFIG = path.join(ROOT, 'config.json');
+const CONFIG_ENC = path.join(ROOT, 'config.json.enc');
 const STATE = path.join(ROOT, 'state.json');
 const LOGS = path.join(ROOT, 'logs');
 const BROKERS = path.join(ROOT, 'brokers.js');
 const SERP_HISTORY = path.join(ROOT, 'data', 'serp-history.json');
+const secrets = require('../lib/secrets');
+const CONFIG_PASSPHRASE = process.env.AIDR_PASSPHRASE || '';
 const EXPOSURE_LIB = path.join(ROOT, 'lib', 'exposure.js');
 
 const PORT = Number.parseInt(process.env.AIDR_PORT, 10) || 8080;
@@ -173,6 +176,34 @@ function readJsonMeta(file) {
   try { return { exists: true, data: JSON.parse(raw) }; }
   catch (_) { return { exists: true, parseError: true }; }
 }
+// Envelope-aware config reader. Prefers config.json.enc, else config.json (which
+// may itself be an envelope). Decrypts with the passphrase (AIDR_PASSPHRASE).
+// On a missing/wrong passphrase for an encrypted config, returns parseError so
+// the API surfaces a clear "could not read" instead of leaking ciphertext.
+// opts (for tests): { configPath, encPath, passphrase }.
+function readConfigMeta(opts) {
+  const o = opts || {};
+  const configPath = o.configPath || CONFIG;
+  const encPath    = o.encPath || CONFIG_ENC;
+  const passphrase = o.passphrase !== undefined ? o.passphrase : CONFIG_PASSPHRASE;
+
+  const tryDecrypt = (env) => {
+    if (!passphrase) return { exists: true, parseError: true };
+    try { return { exists: true, data: secrets.decryptConfig(env, passphrase) }; }
+    catch (_) { return { exists: true, parseError: true }; }
+  };
+
+  if (fs.existsSync(encPath)) {
+    let env;
+    try { env = JSON.parse(fs.readFileSync(encPath, 'utf8')); }
+    catch (_) { return { exists: true, parseError: true }; }
+    return tryDecrypt(env);
+  }
+  const m = readJsonMeta(configPath);
+  if (m.exists && m.data && secrets.isEncryptedEnvelope(m.data)) return tryDecrypt(m.data);
+  return m;
+}
+
 // Atomic write: temp file in the same dir, then rename over the target.
 function writeJsonAtomic(file, obj, mode) {
   const tmp = file + '.tmp-' + crypto.randomBytes(4).toString('hex');
@@ -360,7 +391,7 @@ app.get('/api/exposure', (_req, res) => {
 app.get('/api/summary', (_req, res) => {
   const brokers = loadBrokers();
   const sm = readJsonMeta(STATE);
-  const cfg = readJsonMeta(CONFIG).data || null;
+  const cfg = readConfigMeta().data || null;
   const opts = (sm.data && sm.data.optOuts) || {};
   const lastStatus = name => {
     const o = opts[name];
@@ -388,7 +419,7 @@ app.get('/api/summary', (_req, res) => {
 });
 
 app.get('/api/config', (_req, res) => {
-  const m = readJsonMeta(CONFIG);
+  const m = readConfigMeta();
   if (m.parseError) {
     const ex = readJsonSafe(path.join(ROOT, 'config.example.json'), {});
     return res.json({ exists: true, parseError: true, config: maskConfig(ex) });
@@ -583,4 +614,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { app, loadBrokers, maskConfig, mergeConfig, loadCreds, MASK, configStatus };
+module.exports = { app, loadBrokers, maskConfig, mergeConfig, loadCreds, MASK, configStatus, readConfigMeta };

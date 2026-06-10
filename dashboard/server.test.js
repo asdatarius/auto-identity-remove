@@ -577,3 +577,53 @@ test('GET /api/config/status requires auth (401 without credentials)', async () 
     await close();
   }
 });
+
+// -- At-rest config encryption (added for encrypt-config-at-rest) -------------
+const _encFs = require('node:fs');
+const _encOs = require('node:os');
+const _encPath = require('node:path');
+const secrets = require('../lib/secrets');
+const { readConfigMeta, maskConfig, MASK } = require('./server');
+
+function _encTmpDir() {
+  return _encFs.mkdtempSync(_encPath.join(_encOs.tmpdir(), 'aidr-dash-'));
+}
+
+test('readConfigMeta returns plaintext config when config.json is plaintext', () => {
+  const dir = _encTmpDir();
+  const configPath = _encPath.join(dir, 'config.json');
+  const encPath = _encPath.join(dir, 'config.json.enc');
+  const plain = { person: { firstName: 'Katherine' }, capsolver: { apiKey: 'CAP-A' } };
+  _encFs.writeFileSync(configPath, JSON.stringify(plain));
+  const m = readConfigMeta({ configPath, encPath, passphrase: '' });
+  assert.equal(m.exists, true);
+  assert.deepEqual(m.data, plain);
+});
+
+test('readConfigMeta decrypts config.json.enc when a passphrase is supplied', () => {
+  const dir = _encTmpDir();
+  const configPath = _encPath.join(dir, 'config.json');
+  const encPath = _encPath.join(dir, 'config.json.enc');
+  const plain = { person: { firstName: 'Katherine' }, capsolver: { apiKey: 'CAP-A' } };
+  _encFs.writeFileSync(encPath, JSON.stringify(secrets.encryptConfig(plain, 'pw')));
+  const m = readConfigMeta({ configPath, encPath, passphrase: 'pw' });
+  assert.equal(m.exists, true);
+  assert.deepEqual(m.data, plain);
+});
+
+test('readConfigMeta flags parseError when an encrypted config has no passphrase', () => {
+  const dir = _encTmpDir();
+  const configPath = _encPath.join(dir, 'config.json');
+  const encPath = _encPath.join(dir, 'config.json.enc');
+  const plain = { person: { firstName: 'Katherine' } };
+  _encFs.writeFileSync(encPath, JSON.stringify(secrets.encryptConfig(plain, 'pw')));
+  const m = readConfigMeta({ configPath, encPath, passphrase: '' });
+  assert.equal(m.exists, true);
+  assert.equal(m.parseError, true);
+});
+
+test('maskConfig still masks the capsolver key after decrypting', () => {
+  const plain = { capsolver: { apiKey: 'CAP-SECRET' } };
+  const masked = maskConfig(plain);
+  assert.equal(masked.capsolver.apiKey, MASK);
+});
