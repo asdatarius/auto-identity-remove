@@ -152,3 +152,33 @@ html, body { max-width: 100%; overflow-x: hidden; }
   h1 { font-size: 16px; } .logo { font-size: 22px; }
   .modal-box { margin: 14px; }
 }
+
+/* ---------- first-run wizard ---------- */
+.wizard { position: fixed; inset: 0; background: rgba(0,0,0,.72); display: flex;
+  align-items: center; justify-content: center; z-index: 30; padding: 16px; }
+.wizard-box { background: var(--panel); border: 1px solid var(--accent); border-radius: 14px;
+  padding: 22px; width: 100%; max-width: 560px; max-height: 92vh; overflow: auto; }
+.wizard-head h2 { font-size: 20px; margin: 0 0 6px; }
+.wizard-steps { display: flex; gap: 6px; list-style: none; padding: 0; margin: 14px 0 6px; flex-wrap: wrap; }
+.wizard-steps li { font-size: 11px; color: var(--dim); padding: 3px 8px; border-radius: 999px;
+  background: var(--panel2); border: 1px solid var(--border); }
+.wizard-steps li.active { color: var(--text); border-color: var(--accent); }
+.wizard-steps li.done { color: #7ee787; border-color: #238636; }
+.wizard-form { margin: 8px 0 0; }
+.wiz-step h3 { margin: 12px 0 4px; font-size: 15px; }
+.wiz-why { font-size: 12.5px; margin: 0 0 12px; }
+.wiz-step label { display: flex; flex-direction: column; gap: 4px; font-size: 12px;
+  color: var(--dim); margin-bottom: 12px; }
+.wiz-step input { width: 100%; }
+.req { color: var(--danger); }
+.wiz-err { color: #ff7b72; font-size: 12.5px; min-height: 16px; margin: 4px 0 0; }
+.wiz-review { margin: 8px 0; display: grid; grid-template-columns: max-content 1fr; gap: 4px 14px; }
+.wiz-review dt { color: var(--dim); font-size: 12px; }
+.wiz-review dd { margin: 0; font-size: 13px; word-break: break-word; }
+.wizard-actions { display: flex; gap: 8px; align-items: center; margin-top: 18px; }
+.wizard-actions #wizSkip { margin-left: auto; }
+@media (max-width: 600px) {
+  .wizard-box { padding: 16px; }
+  .wizard-actions { flex-wrap: wrap; }
+  .wizard-actions #wizSkip { margin-left: 0; }
+}
