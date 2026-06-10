@@ -43,7 +43,9 @@ owner **asdatarius** → **Create fork**. You now have
 
 ### Step 2 — Create a Docker Hub access token
 hub.docker.com → your avatar → **Account Settings → Personal access tokens** →
-**Generate new token**. Name it `github-actions`, permissions **Read & Write**.
+**Generate new token**. Name it `github-actions`, permissions **Read, Write, Delete**
+(Delete is required by the Docker Hub description-sync API — a Read & Write token
+can push images but gets `Forbidden` on the description update).
 **Copy the token now** (shown once).
 
 ### Step 3 — Add the secrets to your fork
