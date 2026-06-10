@@ -14,6 +14,20 @@
   </header>
 
   <main>
+    <section class="card exposure-card" id="exposureCard" aria-label="Exposure score">
+      <div class="exposure-head">
+        <div class="exposure-score">
+          <span class="exposure-num" id="exposureNum">—</span>
+          <span class="exposure-max">/ 100</span>
+        </div>
+        <div class="exposure-meta">
+          <div class="exposure-title">Exposure score <span class="dim">(lower is better)</span></div>
+          <div class="exposure-trend" id="exposureTrend"></div>
+        </div>
+        <div class="exposure-spark" id="exposureSpark" aria-hidden="true"></div>
+      </div>
+      <div class="exposure-breakdown" id="exposureBreakdown"></div>
+    </section>
     <section class="card run-card">
       <div class="run-controls">
         <button class="btn btn-primary" data-mode="preview" title="Fill forms without submitting">▶ Preview (dry-run)</button>

@@ -349,13 +349,76 @@ async function loadLogs() {
   }));
 }
 
+// ---------- exposure score ----------
+// Build a tiny inline SVG sparkline from numeric history scores only. Every
+// value is coerced to Number and clamped 0-100, so nothing data-influenced
+// is interpolated as raw text into markup. Trend/breakdown string fragments
+// are escaped with esc(); error text uses textContent.
+function sparklineSvg(scores) {
+  const nums = (Array.isArray(scores) ? scores : [])
+    .map(n => Number(n))
+    .filter(n => Number.isFinite(n))
+    .map(n => Math.max(0, Math.min(100, n)));
+  if (nums.length < 2) return '';
+  const W = 120, H = 28, pad = 2;
+  const span = nums.length - 1;
+  const pts = nums.map((v, i) => {
+    const x = pad + (i / span) * (W - 2 * pad);
+    const y = H - pad - (v / 100) * (H - 2 * pad); // higher score = higher line = worse
+    return `${x.toFixed(1)},${y.toFixed(1)}`;
+  }).join(' ');
+  // points/dimensions are numbers only; safe to inline.
+  return `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" role="img" aria-label="exposure score trend">`
+    + `<polyline fill="none" stroke="currentColor" stroke-width="1.5" points="${pts}" /></svg>`;
+}
+async function loadExposure() {
+  try {
+    const e = await api('/exposure');
+    if (!e || e.error || typeof e.score !== 'number') {
+      $('#exposureNum').textContent = '—';
+      $('#exposureTrend').textContent = e && e.error ? String(e.error) : '';
+      return;
+    }
+    $('#exposureNum').textContent = String(e.score);
+    const hist = Array.isArray(e.history) ? e.history : [];
+    const prior = hist.length ? hist[hist.length - 1] : null;
+    const priorScore = prior && typeof prior.score === 'number' ? prior.score : null;
+    const trendEl = $('#exposureTrend');
+    if (priorScore === null) {
+      // Safe: no user data, only static text
+      trendEl.textContent = 'no trend yet';
+    } else {
+      const delta = e.score - priorScore;
+      const cls = delta < 0 ? 'good' : delta > 0 ? 'bad' : 'muted';
+      const arrow = delta < 0 ? 'down' : delta > 0 ? 'up' : 'flat';
+      const sign = delta > 0 ? '+' : '';
+      // esc() wraps all data-influenced text before innerHTML insertion
+      const span = document.createElement('span');
+      span.className = 'pill ' + cls;
+      span.textContent = arrow + ' ' + sign + delta + ' vs last';
+      trendEl.innerHTML = '';
+      trendEl.appendChild(span);
+    }
+    const b = e.breakdown || { listed: 0, serp: 0, breach: 0 };
+    // All values are numbers from a trusted API endpoint; esc() applied for defense in depth
+    $('#exposureBreakdown').innerHTML = [
+      `<span class="pill muted">${esc(e.listedCount)} still listed (+${esc(b.listed)})</span>`,
+      `<span class="pill muted">${esc(e.serpHits)} search hits (+${esc(b.serp)})</span>`,
+      `<span class="pill muted">breach +${esc(b.breach)}</span>`,
+    ].join('');
+    $('#exposureSpark').innerHTML = sparklineSvg(hist.map(h => h && h.score));
+  } catch (_) {
+    $('#exposureNum').textContent = '—';
+  }
+}
+
 // ---------- footer (version) ----------
 api('/version').then(v => {
   if (v && !v.error) $('#foot').textContent = `auto-identity-remove dashboard · tool v${v.tool} · ${v.node} · ${v.brokers} brokers`;
 }).catch(() => {});
 
 // ---------- boot ----------
-loadSummary(); loadBrokers();
+loadSummary(); loadBrokers(); loadExposure();
 setInterval(loadSummary, 15000);
 // Reconnect to an in-progress run if the page was opened/reloaded mid-run
 api('/run/status').then(s => { if (s && s.running) { setRunning(true, s.mode); openStream(); startRunPoll(); } }).catch(() => {});
