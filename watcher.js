@@ -46,6 +46,8 @@ const NO_CAPSOLVER    = process.argv.includes('--no-capsolver');
 const RESUME          = process.argv.includes('--resume');
 const SNAPSHOT        = process.argv.includes('--snapshot');
 const REPORT          = process.argv.includes('--report');
+const KNOW_MODE       = process.argv.includes('--know');
+const KNOW_STATUS     = process.argv.includes('--know-status');
 
 // ── Credit / identity freeze guided checklist ────────────────────────────────
 const FREEZE_LIST = process.argv.includes('--freeze');
@@ -194,6 +196,26 @@ if (PENDING_MODE) {
       console.log(pad(p.name, 40) + pad(since, 14) + hint);
     }
     console.log(`\n${pending.length} broker(s) awaiting confirmation. Check your inbox for opt-out confirmation emails.\n`);
+  }
+  process.exit(0);
+}
+
+// -- --know-status: print right-to-know requests older than 45 days, then exit -
+if (KNOW_STATUS) {
+  const brokers = require('./brokers');
+  const { getPendingKnowRequests } = require('./lib/config');
+  const pending = getPendingKnowRequests(brokers, { olderThanDays: 45 });
+  if (pending.length === 0) {
+    console.log('\nNo right-to-know requests are older than 45 days awaiting a response.\n');
+  } else {
+    const pad = (s, n) => String(s).padEnd(n);
+    console.log('\n' + pad('Broker', 40) + pad('Requested', 14) + 'Days ago');
+    console.log('-'.repeat(70));
+    for (const p of pending) {
+      const when = p.knowRequestedAt.slice(0, 10);
+      console.log(pad(p.name, 40) + pad(when, 14) + Math.round(p.daysAgo));
+    }
+    console.log(`\n${pending.length} right-to-know request(s) past 45 days. Follow up with the broker if no disclosure arrived.\n`);
   }
   process.exit(0);
 }
@@ -428,6 +450,51 @@ const profileDir = (config.profileDir || '~/.config/auto-identity-remove')
   .replace(/^~(?=\/|$)/, os.homedir());
 const state = loadState();
 const persons = getPersonsFromConfig(config);
+
+// -- --know: fire right-to-know (data access) requests to email brokers, exit --
+// No browser needed - email-method brokers only. Acquires the state lock since
+// recordKnowRequest -> saveState writes state.json.
+if (KNOW_MODE) {
+  const brokers = require('./brokers');
+  const { sendKnowRequests } = require('./lib/right-to-know-runner');
+  const { getPendingKnowRequests } = require('./lib/config');
+  const KNOW_LOCK_PATH = STATE_PATH + '.lock';
+  try {
+    lock.acquire(KNOW_LOCK_PATH);
+  } catch (err) {
+    const pidMatch = err.message.match(/pid (\d+)/);
+    console.error(`Another instance is running, pid=${pidMatch ? pidMatch[1] : '?'}. Exiting.`);
+    process.exit(1);
+  }
+
+  (async () => {
+    console.log('\nRight-to-know - requesting disclosure of held data from email brokers');
+    if (DRY_RUN) console.log('DRY RUN - previews only, nothing sent, no state saved.');
+    const emailBrokerCount = brokers.filter(b => b.method === 'email').length;
+    console.log(`${emailBrokerCount} email broker(s) x ${persons.length} person(s)\n`);
+
+    const result = await sendKnowRequests(brokers, config, { dryRun: DRY_RUN });
+
+    console.log('\n' + '='.repeat(54));
+    console.log('Right-to-know results - ' + new Date().toLocaleString());
+    console.log('='.repeat(54));
+    console.log(`  sent (SMTP) : ${result.sent.length}`);
+    console.log(`  manual      : ${result.manual.length}`);
+    console.log(`  errors      : ${result.errors.length}`);
+    for (const e of result.errors) console.log(`    - ${e.name}: ${e.error}`);
+    const pending = getPendingKnowRequests(brokers, { olderThanDays: 45 });
+    console.log(`\n  ${pending.length} prior request(s) now past 45 days (run --know-status for detail).`);
+    console.log('='.repeat(54) + '\n');
+  })().then(() => {
+    lock.release(STATE_PATH + '.lock');
+    process.exit(0);
+  }).catch(err => {
+    lock.release(STATE_PATH + '.lock');
+    console.error('know error:', err.message);
+    process.exit(1);
+  });
+} else {
+
 brokerRunner.configure({ dryRun: DRY_RUN, preview: PREVIEW, person: persons[0], capsolver: config.capsolver, noCapsolver: NO_CAPSOLVER, snapshot: SNAPSHOT, personCount: persons.length });
 
 // Detect brokers that have been consistently unreachable across recent runs.
@@ -767,6 +834,8 @@ main().catch(err => {
   sendText(`❌ Privacy Watcher crashed: ${err.message.slice(0, 100)}`, notify);
   process.exit(1);
 });
+
+} // end else (not --know mode)
 
 } // end else (not DOCTOR mode)
 
