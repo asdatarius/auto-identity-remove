@@ -26,6 +26,7 @@ const CONFIG_PATH     = path.join(__dirname, 'config.json');
 const STATE_PATH      = path.join(__dirname, 'state.json');
 const MARKUP_PATH     = path.join(__dirname, 'data', 'markup-parsed.json');
 const BADBOOL_PATH    = path.join(__dirname, 'data', 'badbool-extra.json');
+const FEEDS_PATH      = path.join(__dirname, 'data', 'feeds-brokers.json');
 const DEAD_URLS_PATH  = path.join(__dirname, 'data', 'dead-urls.json');
 
 const { detectConfirmationRequired } = require('./lib/confirm');
@@ -409,6 +410,30 @@ function loadGenericBrokers(explicitBrokerHosts) {
         brokers.push({ name: host, url, source: 'badbool' });
       } catch(_) {}
     }
+  }
+
+  // Live registry feeds (California + Vermont), written by
+  // `node watcher.js --update-brokers` to data/feeds-brokers.json. Loaded after
+  // Markup/BADBOOL so the Markup dataset stays the fallback and feed entries are
+  // deduped against everything already loaded. Each row is the normalized shape
+  // { name, optOutUrl, method, source }; the generic runner navigates `url`, so
+  // url-less manual rows are skipped here.
+  if (fs.existsSync(FEEDS_PATH)) {
+    try {
+      const feeds = JSON.parse(fs.readFileSync(FEEDS_PATH, 'utf8'));
+      if (Array.isArray(feeds)) {
+        for (const row of feeds) {
+          const url = row && row.optOutUrl;
+          if (!url || !url.startsWith('http')) continue;
+          try {
+            const host = new URL(url).hostname.replace(/^www\./, '');
+            if (seen.has(host)) continue;
+            seen.add(host);
+            brokers.push({ name: row.name || host, url, source: row.source || 'feed' });
+          } catch(_) {}
+        }
+      }
+    } catch(_) {}
   }
 
   return brokers;
