@@ -48,6 +48,7 @@ const SNAPSHOT        = process.argv.includes('--snapshot');
 const REPORT          = process.argv.includes('--report');
 const KNOW_MODE       = process.argv.includes('--know');
 const KNOW_STATUS     = process.argv.includes('--know-status');
+const COMPLAINTS_MODE = process.argv.includes('--complaints');
 
 // ── Credit / identity freeze guided checklist ────────────────────────────────
 const FREEZE_LIST = process.argv.includes('--freeze');
@@ -255,6 +256,78 @@ if (BREACH_CHECK) {
     process.exit(1);
   });
 } else {
+
+// ── --complaints: generate regulator complaints for brokers past the legal
+//    response window (CCPA 45d / GDPR 30d) and write text + PDF to logs/. ─────
+if (COMPLAINTS_MODE) {
+  const brokers = require('./brokers');
+  const { findOverdue, buildComplaintsForBroker, writeComplaintFiles } = require('./lib/complaint');
+
+  const config  = loadConfig();
+  const state   = loadState();
+  const persons = getPersonsFromConfig(config);
+  const person  = persons[0];
+  const brokerMap = new Map(brokers.map(b => [b.name, b]));
+
+  const overdueList = findOverdue(state, {});
+  if (overdueList.length === 0) {
+    console.log('\nNo brokers are past their legal response window. Nothing to escalate.\n');
+    process.exit(0);
+  }
+
+  const outDir = path.join(__dirname, 'logs', 'complaints');
+  const pad = (s, n) => String(s).padEnd(n);
+  console.log('\n' + pad('Broker', 32) + pad('Regime', 8) + pad('Days overdue', 14) + 'Requested');
+  console.log('-'.repeat(78));
+
+  const entries = overdueList.map(overdue => {
+    const broker = brokerMap.get(overdue.broker) || { name: overdue.broker };
+    console.log(
+      pad(overdue.broker, 32) +
+      pad(overdue.regime, 8) +
+      pad(String(overdue.daysOverdue), 14) +
+      String(overdue.requestedAt).slice(0, 10)
+    );
+    return { broker: overdue.broker, complaints: buildComplaintsForBroker({ person, broker, overdue }) };
+  });
+
+  (async () => {
+    let newPage;
+    let context;
+    if (!DRY_RUN) {
+      let chromiumForPdf;
+      try {
+        ({ chromium: chromiumForPdf } = require('playwright'));
+      } catch (_) {
+        const fallback = path.join(os.homedir(), '.openclaw', 'plugins', 'node_modules', 'playwright');
+        ({ chromium: chromiumForPdf } = require(fallback));
+      }
+      const profileDirForPdf = (config.profileDir || '~/.config/auto-identity-remove')
+        .replace(/^~(?=\/|$)/, os.homedir());
+      context = await chromiumForPdf.launchPersistentContext(profileDirForPdf, {
+        headless: true,
+        viewport: { width: 1280, height: 900 },
+      });
+      newPage = () => context.newPage();
+    } else {
+      console.log('\nDRY RUN - writing complaint text only, skipping PDF generation.');
+    }
+
+    try {
+      const { written } = await writeComplaintFiles({ outDir, entries, newPage });
+      console.log(`\nWrote ${written.length} complaint file(s) to ${outDir}`);
+      const pdfCount = written.filter(p => p.endsWith('.pdf')).length;
+      const txtCount = written.filter(p => p.endsWith('.txt')).length;
+      console.log(`   ${txtCount} text, ${pdfCount} PDF\n`);
+    } finally {
+      if (context) await context.close().catch(() => {});
+    }
+    process.exit(0);
+  })().catch(err => {
+    console.error('complaints error:', err.message);
+    process.exit(1);
+  });
+} else
 
 // ── --confirm-emails [dir]: process .eml files and auto-click confirm links ───
 if (CONFIRM_EMAILS) {
