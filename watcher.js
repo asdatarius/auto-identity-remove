@@ -45,6 +45,14 @@ const NO_CAPSOLVER    = process.argv.includes('--no-capsolver');
 const RESUME          = process.argv.includes('--resume');
 const SNAPSHOT        = process.argv.includes('--snapshot');
 
+// ── Credit / identity freeze guided checklist ────────────────────────────────
+const FREEZE_LIST = process.argv.includes('--freeze');
+const freezeDoneIdx  = process.argv.indexOf('--freeze-done');
+const FREEZE_DONE_KEY  = freezeDoneIdx !== -1 ? (process.argv[freezeDoneIdx + 1] || '') : null;
+const freezeClearIdx = process.argv.indexOf('--freeze-clear');
+const FREEZE_CLEAR_KEY = freezeClearIdx !== -1 ? (process.argv[freezeClearIdx + 1] || '') : null;
+const FREEZE_MODE = FREEZE_LIST || FREEZE_DONE_KEY !== null || FREEZE_CLEAR_KEY !== null;
+
 // ── --confirm-emails [dir]: auto-click confirmation links in .eml files ───────
 const confirmEmailsIdx = process.argv.indexOf('--confirm-emails');
 const CONFIRM_EMAILS = confirmEmailsIdx !== -1;
@@ -54,6 +62,67 @@ const confirmEmailsDir = (() => {
   const next = process.argv[confirmEmailsIdx + 1];
   return (next && !next.startsWith('--')) ? next : './inbox/confirms';
 })();
+
+// ── --freeze / --freeze-done <key> / --freeze-clear <key> ─────────────────────
+// Guided credit/identity freeze checklist. Pure guidance + tracking; no browser
+// is launched. Subcommands persist state.freezes under the same state lock as a
+// normal run so a concurrent run cannot race the write.
+if (FREEZE_MODE) {
+  const { FREEZE_TARGETS, getFreezeStatus, recordFreezeDone, recordFreezeCleared, TARGET_KEYS } = require('./lib/freeze');
+  const state = loadState();
+
+  // Mutating subcommands take the lock; the read-only list does not need it.
+  const isMutation = FREEZE_DONE_KEY !== null || FREEZE_CLEAR_KEY !== null;
+  const FREEZE_LOCK_PATH = STATE_PATH + '.lock';
+  if (isMutation) {
+    try {
+      lock.acquire(FREEZE_LOCK_PATH);
+    } catch (err) {
+      const pidMatch = err.message.match(/pid (\d+)/);
+      console.error(`Another instance is running, pid=${pidMatch ? pidMatch[1] : '?'}. Exiting.`);
+      process.exit(1);
+    }
+  }
+
+  try {
+    if (FREEZE_DONE_KEY !== null) {
+      if (!TARGET_KEYS.has(FREEZE_DONE_KEY)) {
+        console.error(`unknown freeze target: "${FREEZE_DONE_KEY}". Valid keys: ${[...TARGET_KEYS].join(', ')}`);
+        process.exit(1);
+      }
+      recordFreezeDone(state, FREEZE_DONE_KEY);
+      console.log(`Marked freeze done: ${FREEZE_DONE_KEY}`);
+    } else if (FREEZE_CLEAR_KEY !== null) {
+      if (!TARGET_KEYS.has(FREEZE_CLEAR_KEY)) {
+        console.error(`unknown freeze target: "${FREEZE_CLEAR_KEY}". Valid keys: ${[...TARGET_KEYS].join(', ')}`);
+        process.exit(1);
+      }
+      recordFreezeCleared(state, FREEZE_CLEAR_KEY);
+      console.log(`Cleared freeze: ${FREEZE_CLEAR_KEY}`);
+    }
+  } finally {
+    if (isMutation) lock.release(FREEZE_LOCK_PATH);
+  }
+
+  // Always print the checklist after a list request or a mutation.
+  const rows = getFreezeStatus(state);
+  const doneCount = rows.filter(r => r.done).length;
+  const pad = (s, n) => String(s).padEnd(n);
+  console.log('\n Credit / identity freeze checklist');
+  console.log('   Freezing your credit is the single highest-impact privacy action.');
+  console.log('   Each target needs identity verification, so this is guidance, not automation.\n');
+  console.log('   ' + pad('Done', 6) + pad('Target', 18) + pad('Type', 16) + 'URL');
+  console.log('   ' + '-'.repeat(86));
+  for (const r of rows) {
+    const mark = r.done ? '[x]' : '[ ]';
+    console.log('   ' + pad(mark, 6) + pad(r.name, 18) + pad(r.type, 16) + r.url);
+  }
+  console.log(`\n   ${doneCount}/${rows.length} complete.`);
+  console.log('   Mark one done:  node watcher.js --freeze-done <key>');
+  console.log('   Undo a mark:    node watcher.js --freeze-clear <key>');
+  console.log(`   Keys: ${FREEZE_TARGETS.map(t => t.key).join(', ')}\n`);
+  process.exit(0);
+}
 
 // ── --list: print all brokers + status from state.json, then exit ────────────
 if (LIST_MODE) {
