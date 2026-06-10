@@ -32,6 +32,7 @@ const DEAD_URLS_PATH  = path.join(__dirname, 'data', 'dead-urls.json');
 const { detectConfirmationRequired } = require('./lib/confirm');
 const { CONFIRM_RECHECK_DAYS } = require('./lib/config');
 const { withRetry } = require('./lib/retry');
+const { isAllowlisted } = require('./lib/filter');
 
 // Config is loaded lazily so that modules importing only the pure helpers
 // (classifyNavError, isDeadStatus, loadDeadSet) don't require config.json.
@@ -284,6 +285,14 @@ async function submitForm(page) {
 // ─── Process one generic URL ──────────────────────────────────────────────────
 
 async function processGenericUrl(page, broker, state, dryRun = false, injectedDeadSet) {
+  // Allowlist: the user explicitly wants to stay listed on this host, so never
+  // navigate or submit. Returned before any network request.
+  let allowCfg = null;
+  try { allowCfg = getConfig(); } catch (_) { allowCfg = null; }
+  if (isAllowlisted(broker.name, allowCfg)) {
+    return { status: 'allowlisted', detail: 'on allowlist - keeping listing, no opt-out submitted' };
+  }
+
   // WP4: if the entry is in pending-confirmation state, use the shorter 14-day
   // re-check window so the user has a chance to click the confirmation link.
   const entry = state.optOuts[broker.name];
@@ -461,6 +470,8 @@ function classifyOutcome(status, detail) {
       return 'no_form_found';
     case 'error':
       return 'error';
+    case 'allowlisted':
+      return 'allowlisted';
     case 'skipped':
       // Distinguish dry-run skips from recently-visited skips via detail text
       if (detail && detail.includes('dry-run')) return 'dry-run-skipped';
