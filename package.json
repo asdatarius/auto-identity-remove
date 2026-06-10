@@ -3,11 +3,28 @@
   "version": "1.0.0",
   "description": "Automated data broker opt-out runner — removes your personal info from 30+ people-search and data broker sites on a monthly schedule",
   "main": "watcher.js",
+  "bin": {
+    "aidr": "./bin/aidr.js"
+  },
+  "files": [
+    "bin/",
+    "lib/",
+    "dashboard/",
+    "watcher.js",
+    "setup.js",
+    "brokers.js",
+    "generic-runner.js",
+    "run.sh",
+    "config.example.json",
+    "data/",
+    "README.md"
+  ],
   "scripts": {
     "setup": "node setup.js",
     "start": "node watcher.js",
     "run": "bash run.sh",
-    "test": "node --test test/*.test.js dashboard/validate.test.js dashboard/config-status.test.js"
+    "test": "node --test test/*.test.js dashboard/validate.test.js dashboard/config-status.test.js",
+    "aidr": "node bin/aidr.js"
   },
   "dependencies": {
     "axios": "^1.7.2",
