@@ -27,6 +27,7 @@ const PREVIEW           = process.argv.includes('--preview');
 const DRY_RUN           = process.argv.includes('--dry-run') || PREVIEW; // --preview implies --dry-run
 const VERIFY            = process.argv.includes('--verify');
 const SERP_SCAN         = process.argv.includes('--serp-scan');
+const SERP_WATCH        = process.argv.includes('--serp-watch');
 const INSTALL_SCHEDULER = process.argv.includes('--install-scheduler');
 const DOCTOR            = process.argv[2] === 'doctor' || process.argv.includes('--doctor');
 
@@ -578,6 +579,34 @@ async function _mainBody() {
       console.log('  Your opt-outs appear to be effective at the SERP level.');
     }
 
+    console.log('\n' + '='.repeat(62) + '\n');
+    return;
+  }
+
+  // -- SERP watch mode: scan + diff vs history + alert on NEW domains ---------
+  if (SERP_WATCH) {
+    const { runSerpWatch } = require('./lib/serp-watch');
+    console.log('\n SERP watch - scanning, then diffing against previous history');
+    console.log('   Alerts fire only when your name appears on a NEW domain.\n');
+    const watch = await runSerpWatch(context, persons, brokers, { cfg: config });
+    await context.close().catch(() => {});
+
+    console.log('\n' + '='.repeat(62));
+    console.log('SERP Watch Results - ' + new Date().toLocaleString());
+    console.log('='.repeat(62));
+    if (watch.summary.blocked.length > 0) {
+      console.log(`\n  Blocked engines (bot-detection triggered): ${watch.summary.blocked.join(', ')}`);
+    }
+    console.log(`\n  New domains    : ${watch.diff.newDomains.length}`);
+    console.log(`  Gone domains   : ${watch.diff.goneDomains.length}`);
+    console.log(`  Still present  : ${watch.diff.stillPresent.length}`);
+    if (watch.diff.newDomains.length > 0) {
+      console.log('\n  WARNING: NEW domains your name now appears on:');
+      for (const d of watch.diff.newDomains) console.log(`     - ${d}`);
+      console.log(watch.alerted ? '\n  An alert was dispatched.' : '\n  (No alert channel configured.)');
+    } else {
+      console.log('\n  No new broker domains since the last scan.');
+    }
     console.log('\n' + '='.repeat(62) + '\n');
     return;
   }
