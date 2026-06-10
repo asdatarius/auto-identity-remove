@@ -536,3 +536,71 @@ test('runSerpScan null rank means broker not found on that engine', async () => 
     assert.equal(r.ranks.google, null, 'google rank should be null when not found');
   }
 });
+
+// -- readHistory (safe reader for serp-watch) ---------------------------------
+
+const { readHistory, HISTORY_PATH } = require('../lib/serp-scan');
+
+test('readHistory returns parsed array when history file is valid JSON', () => {
+  const fsMod = require('fs');
+  const sample = [
+    { personId: 'abc', broker: 'Spokeo', engine: 'ddg', rank: 1, hostname: 'spokeo.com', scannedAt: '2026-01-01T00:00:00.000Z' },
+  ];
+  const origRead = fsMod.readFileSync;
+  fsMod.readFileSync = (p, enc) => {
+    if (p === HISTORY_PATH) return JSON.stringify(sample);
+    return origRead(p, enc);
+  };
+  try {
+    const out = readHistory();
+    assert.deepEqual(out, sample);
+  } finally {
+    fsMod.readFileSync = origRead;
+  }
+});
+
+test('readHistory returns empty array when file is missing', () => {
+  const fsMod = require('fs');
+  const origRead = fsMod.readFileSync;
+  fsMod.readFileSync = (p, enc) => {
+    if (p === HISTORY_PATH) { const e = new Error('ENOENT'); e.code = 'ENOENT'; throw e; }
+    return origRead(p, enc);
+  };
+  try {
+    assert.deepEqual(readHistory(), []);
+  } finally {
+    fsMod.readFileSync = origRead;
+  }
+});
+
+test('readHistory returns empty array when file is malformed JSON', () => {
+  const fsMod = require('fs');
+  const origRead = fsMod.readFileSync;
+  fsMod.readFileSync = (p, enc) => {
+    if (p === HISTORY_PATH) return '{ not valid json';
+    return origRead(p, enc);
+  };
+  try {
+    assert.deepEqual(readHistory(), []);
+  } finally {
+    fsMod.readFileSync = origRead;
+  }
+});
+
+test('readHistory returns empty array when JSON is not an array', () => {
+  const fsMod = require('fs');
+  const origRead = fsMod.readFileSync;
+  fsMod.readFileSync = (p, enc) => {
+    if (p === HISTORY_PATH) return JSON.stringify({ optOuts: {} });
+    return origRead(p, enc);
+  };
+  try {
+    assert.deepEqual(readHistory(), []);
+  } finally {
+    fsMod.readFileSync = origRead;
+  }
+});
+
+test('serp-scan exports HISTORY_PATH ending in data/serp-history.json', () => {
+  assert.ok(HISTORY_PATH.endsWith('serp-history.json'), `HISTORY_PATH was ${HISTORY_PATH}`);
+});
