@@ -4,7 +4,8 @@ Automated **data-broker opt-out runner** — removes your (and your family's) pe
 info from 500+ people-search and data-broker sites on a monthly schedule, headless.
 This image is a **container-ready build** of
 [stephenlthorn/auto-identity-remove](https://github.com/stephenlthorn/auto-identity-remove),
-packaged to "just work" on a NAS via Portainer.
+packaged to "just work" on a NAS via Portainer. Source for this build:
+[asdatarius/auto-identity-remove](https://github.com/asdatarius/auto-identity-remove).
 
 **Multi-arch:** `linux/amd64` + `linux/arm64`.
 
@@ -14,6 +15,7 @@ packaged to "just work" on a NAS via Portainer.
 - `PUID`/`PGID` for NAS file permissions
 - Webhook / Telegram notifications (headless-friendly; iMessage is macOS-only)
 - A `run-now` helper for on-demand runs
+- Tracks upstream weekly (auto-sync PRs), so new upstream features land here too
 
 ## Quick start (Portainer stack)
 
@@ -34,16 +36,19 @@ services:
 ```
 
 1. Create the host folder and drop your **`config.json`** in it (template:
-   [`deploy/config.sample.json`](https://github.com/stephenlthorn/auto-identity-remove)).
+   [`deploy/config.sample.json`](https://github.com/asdatarius/auto-identity-remove/blob/main/deploy/config.sample.json)).
    Use a `persons` array for the whole family.
 2. Deploy the stack. The container idles and runs the opt-out on `CRON_SCHEDULE`.
 3. **Test first:** `docker exec auto-identity-remove run-now --dry-run`
 
 ## Run it manually
 ```bash
-docker exec auto-identity-remove run-now            # full run
-docker exec auto-identity-remove run-now --dry-run  # fill forms, submit nothing
-docker exec auto-identity-remove run-now --verify   # re-check past opt-outs
+docker exec auto-identity-remove run-now                # full run
+docker exec auto-identity-remove run-now --dry-run      # fill forms, submit nothing
+docker exec auto-identity-remove run-now --verify       # re-check past opt-outs
+docker exec auto-identity-remove run-now --score        # exposure score + trend
+docker exec auto-identity-remove run-now --breach-check # HIBP breach check (needs hibp.apiKey)
+docker exec auto-identity-remove run-now --serp-watch   # alert on NEW search-result domains
 ```
 Or click **Console** on the container in Portainer and type `run-now`.
 
@@ -54,8 +59,9 @@ Holds everything that must persist (mount one folder):
 |------|---------|
 | `config.json` | your details (you provide this) |
 | `state.json`  | opt-out history — **keep it**; stops re-submitting every run |
-| `logs/`       | per-run JSON logs |
+| `logs/`       | per-run JSON logs (+ `--snapshot` screenshots) |
 | `profile/`    | browser session |
+| `serp-history.json` | search-result scan history (`--serp-scan` / `--serp-watch`) |
 
 ## Environment variables
 
@@ -67,15 +73,22 @@ Holds everything that must persist (mount one folder):
 | `WATCHER_ARGS` | _(empty)_ | Extra flags (`--dry-run`, `--verify`, `--no-capsolver`, `--only X`) |
 | `HEADLESS` | `1` | Keep `1` on a NAS |
 | `PUID` / `PGID` | `1000` | uid/gid that owns `/data` |
+| `AIDR_PASSPHRASE` | _(empty)_ | Optional: decrypts an at-rest-encrypted `config.json.enc` (see upstream `--encrypt-config`) |
 
 ## Notifications (set in `config.json`)
 - **Discord:** webhook URL **with `/slack` appended**
 - **Telegram:** `notify.telegram = { botToken, chatId }`
-- **ntfy:** `https://ntfy.sh/<your-topic>` (free)
+- **ntfy:** `https://ntfy.sh/<your-topic>` — invent a long random topic; anyone who knows it can read it
+
+## Optional features (config blocks, all default-off)
+- **Masked-email relay** (`relay`): submit opt-outs with per-person SimpleLogin aliases so brokers never get your real address
+- **Broker allowlist** (`allowlist`): skip brokers you intentionally keep
+- **At-rest config encryption**: `--encrypt-config` + `AIDR_PASSPHRASE` env
+- **Breach check** (`hibp.apiKey`): cross-reference Have-I-Been-Pwned breaches
 
 ## Tags
 - `latest` — current build
-- `1.0.x` — pinned versions
+- `1.0.x` — pinned versions (1.0.6+: upstream relay/allowlist/encryption/HIBP/score features)
 - `sha-<commit>` — exact source commit
 
 ## Notes

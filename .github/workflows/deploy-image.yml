@@ -56,3 +56,14 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      # Keep the Docker Hub page in sync with deploy/DOCKERHUB.md — no more
+      # hand-pasting the description after each change.
+      - name: Sync Docker Hub description
+        uses: peter-evans/dockerhub-description@v4
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          repository: ${{ secrets.DOCKERHUB_USERNAME }}/auto-identity-remove
+          short-description: "Data-broker opt-out runner for NAS/Portainer — scheduled, multi-arch, family-ready"
+          readme-filepath: deploy/DOCKERHUB.md
