@@ -461,8 +461,236 @@ api('/version').then(v => {
   if (v && !v.error) $('#foot').textContent = `auto-identity-remove dashboard · tool v${v.tool} · ${v.node} · ${v.brokers} brokers`;
 }).catch(() => {});
 
+// ---------- first-run wizard ----------
+// Required person fields (mirrors dashboard/config-status.js REQUIRED_PERSON_FIELDS
+// and lib/config.js getPersonsFromConfig). Keep in sync.
+const WIZ_REQUIRED = ['person.firstName', 'person.lastName', 'person.email'];
+// Per-step required field paths (index matches data-step). Steps 2/3/4 are optional.
+const WIZ_STEP_REQUIRED = [
+  ['person.firstName', 'person.lastName', 'person.email'], // step 0: Person
+  ['person.country'],                                      // step 1: Region/Country
+  [],                                                      // step 2: CapSolver (optional)
+  [],                                                      // step 3: SMTP (optional)
+  [],                                                      // step 4: Notifications (optional)
+  [],                                                      // step 5: Review
+];
+const WIZ_TOTAL_STEPS = 6;
+const WIZ_STEP_NAMES = ['Person', 'Region', 'CapSolver', 'Email', 'Notify', 'Review'];
+// Minimal fallback if /config cannot return the example (network/parse issue):
+// the wizard must still open with sensible blanks.
+const EXAMPLE_CONFIG_FALLBACK = {
+  person: { firstName: '', lastName: '', fullName: '', aliases: [], city: '',
+    country: 'US', state: '', zip: '', email: '', phone: '', phoneFormatted: '' },
+};
+// Fields treated as secrets in the review (shown as "(set)" / "(blank)", never the value).
+const WIZ_SECRET_PATHS = new Set(['capsolver.apiKey', 'email.smtp.pass', 'notify.webhook']);
+// Exact placeholder values shipped in config.example.json. When config.json is
+// absent the server returns the raw example (unmasked) from GET /api/config, so
+// the wizard must blank these out rather than silently saving the samples as if
+// they were real answers. Keyed by the dotted input name. Aliases (an array) is
+// handled separately in wizPrefill after the join.
+const WIZ_EXAMPLE_PLACEHOLDERS = {
+  'person.firstName': 'Jane',
+  'person.lastName': 'Doe',
+  'person.fullName': 'Jane Doe',
+  'person.city': 'Austin',
+  'person.state': 'TX',
+  'person.zip': '73301',
+  'person.email': 'jane.doe@example.com',
+  'person.phone': '5125550000',
+  'person.phoneFormatted': '(512) 555-0000',
+  'capsolver.apiKey': 'CAP-YOUR_KEY_HERE',
+  'email.smtp.host': 'smtp.gmail.com',
+  'email.smtp.user': 'you@gmail.com',
+  'email.smtp.pass': 'YOUR_GMAIL_APP_PASSWORD',
+  'email.smtp.from': 'you@gmail.com',
+  'notify.textTo': '+15125550000',
+};
+// The example's sample aliases, blanked the same way (it is an array, so it is
+// matched after wizPrefill joins it to a comma string).
+const WIZ_EXAMPLE_ALIASES = 'Jan Doe, Jane M Doe';
+
+let wizStep = 0;
+
+function wizEl() {
+  return {
+    overlay: $('#wizard'), form: $('#wizardForm'), steps: $('#wizSteps'),
+    review: $('#wizReview'), back: $('#wizBack'), skip: $('#wizSkip'),
+    next: $('#wizNext'), finish: $('#wizFinish'),
+  };
+}
+function wizGetValue(name) {
+  const inp = $(`#wizardForm input[name="${name}"]`);
+  return inp ? inp.value.trim() : '';
+}
+// Prefill the wizard inputs from the example config the server returns when
+// config.json is absent (or from a partial live config if one exists).
+function wizPrefill(cfg) {
+  const c = cfg || EXAMPLE_CONFIG_FALLBACK;
+  $$('#wizardForm input').forEach(inp => {
+    let v = getPath(c, inp.name);
+    if (inp.name === 'person.aliases' && Array.isArray(v)) v = v.join(', ');
+    // Blank any value that is still the verbatim config.example.json sample so
+    // the wizard never silently saves placeholders (Jane Doe, CAP-YOUR_KEY_HERE,
+    // YOUR_GMAIL_APP_PASSWORD, the sample phone/city/state/zip, etc.) as answers.
+    if (typeof v === 'string' && WIZ_EXAMPLE_PLACEHOLDERS[inp.name] === v) v = '';
+    if (inp.name === 'person.aliases' && v === WIZ_EXAMPLE_ALIASES) v = '';
+    // Do not prefill masked secrets into the wizard.
+    if (typeof v === 'string' && v === MASK) v = '';
+    inp.value = v == null ? '' : v;
+  });
+}
+function wizRenderSteps() {
+  const { steps } = wizEl();
+  // All values are static strings or numbers - esc() applied for defense in depth
+  steps.innerHTML = WIZ_STEP_NAMES.map((n, i) => {
+    const cls = i === wizStep ? 'active' : (i < wizStep ? 'done' : '');
+    return `<li class="${cls}">${esc((i + 1) + '. ' + n)}</li>`;
+  }).join('');
+}
+function wizShowStep(n) {
+  wizStep = Math.max(0, Math.min(WIZ_TOTAL_STEPS - 1, n));
+  $$('#wizardForm .wiz-step').forEach(sec => {
+    sec.classList.toggle('hidden', Number(sec.dataset.step) !== wizStep);
+  });
+  $$('.wiz-err').forEach(e => { e.textContent = ''; });
+  const { back, skip, next, finish } = wizEl();
+  back.disabled = wizStep === 0;
+  const isReview = wizStep === WIZ_TOTAL_STEPS - 1;
+  const isOptional = WIZ_STEP_REQUIRED[wizStep].length === 0 && !isReview;
+  skip.classList.toggle('hidden', !isOptional);
+  next.classList.toggle('hidden', isReview);
+  finish.classList.toggle('hidden', !isReview);
+  if (isReview) wizRenderReview();
+  wizRenderSteps();
+}
+// Collect the wizard inputs into a nested config object (same convention as the
+// Config tab's save: dotted input names -> nested object via setPath).
+function wizCollect() {
+  const cfg = {};
+  $$('#wizardForm input').forEach(inp => {
+    let v = inp.value.trim();
+    if (v === '') return; // omit blanks so the PUT merge does not clobber anything
+    if (inp.name === 'person.aliases') {
+      const arr = v.split(',').map(s => s.trim()).filter(Boolean);
+      if (arr.length === 0) return;
+      v = arr;
+    }
+    if (inp.name === 'email.smtp.port') v = parseInt(v, 10) || v;
+    setPath(cfg, inp.name, v);
+  });
+  // Default fullName from first+last when the user left it blank.
+  const fn = wizGetValue('person.firstName'), ln = wizGetValue('person.lastName');
+  if (!wizGetValue('person.fullName') && (fn || ln)) {
+    setPath(cfg, 'person.fullName', [fn, ln].filter(Boolean).join(' '));
+  }
+  return cfg;
+}
+function wizValidateStep() {
+  const required = WIZ_STEP_REQUIRED[wizStep] || [];
+  const blank = required.filter(p => wizGetValue(p) === '');
+  const errEl = $(`.wiz-err[data-err="${wizStep}"]`);
+  if (blank.length) {
+    const labels = blank.map(p => p.replace('person.', '')).join(', ');
+    if (errEl) errEl.textContent = 'Please fill: ' + labels;
+    return false;
+  }
+  // Light email sanity check on the Person step.
+  if (wizStep === 0) {
+    const email = wizGetValue('person.email');
+    if (email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) {
+      if (errEl) errEl.textContent = 'That email does not look valid.';
+      return false;
+    }
+  }
+  if (errEl) errEl.textContent = '';
+  return true;
+}
+function wizRenderReview() {
+  const cfg = wizCollect();
+  const rows = [];
+  const add = (label, path) => {
+    let v = getPath(cfg, path);
+    if (Array.isArray(v)) v = v.join(', ');
+    if (WIZ_SECRET_PATHS.has(path)) v = (v ? '(set)' : '(blank)');
+    const display = (v == null || v === '') ? '(blank)' : String(v);
+    // esc() escapes every interpolated value before innerHTML insertion
+    rows.push(`<dt>${esc(label)}</dt><dd>${esc(display)}</dd>`);
+  };
+  add('First name', 'person.firstName');
+  add('Last name', 'person.lastName');
+  add('Full name', 'person.fullName');
+  add('Aliases', 'person.aliases');
+  add('Email', 'person.email');
+  add('Country', 'person.country');
+  add('City', 'person.city');
+  add('State / Region', 'person.state');
+  add('ZIP / Postal', 'person.zip');
+  add('Phone', 'person.phone');
+  add('CapSolver key', 'capsolver.apiKey');
+  add('SMTP host', 'email.smtp.host');
+  add('SMTP user', 'email.smtp.user');
+  add('SMTP password', 'email.smtp.pass');
+  add('Webhook', 'notify.webhook');
+  add('Text to', 'notify.textTo');
+  $('#wizReview').innerHTML = rows.join('');
+}
+async function wizFinish() {
+  // Final guard: every globally-required field must be present.
+  const missing = WIZ_REQUIRED.filter(p => wizGetValue(p) === '');
+  const errEl = $('.wiz-err[data-err="5"]');
+  if (missing.length) {
+    if (errEl) errEl.textContent = 'Missing required: ' + missing.map(p => p.replace('person.', '')).join(', ') + '. Go back to the Person step.';
+    return;
+  }
+  const cfg = wizCollect();
+  const { finish } = wizEl();
+  finish.disabled = true;
+  try {
+    const r = await api('/config', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ config: cfg }) });
+    if (r && r.ok) {
+      wizEl().overlay.classList.add('hidden');
+      // Reveal the live dashboard now that config exists.
+      loadSummary(); loadBrokers();
+    } else {
+      if (errEl) errEl.textContent = ((r && r.error) || 'save failed');
+      finish.disabled = false;
+    }
+  } catch (err) {
+    if (errEl) errEl.textContent = (err && err.message || String(err));
+    finish.disabled = false;
+  }
+}
+function wizWire() {
+  const { overlay, back, skip, next, finish } = wizEl();
+  if (!overlay) return;
+  back.addEventListener('click', () => wizShowStep(wizStep - 1));
+  skip.addEventListener('click', () => wizShowStep(wizStep + 1));
+  next.addEventListener('click', () => { if (wizValidateStep()) wizShowStep(wizStep + 1); });
+  finish.addEventListener('click', wizFinish);
+}
+async function initWizard() {
+  let status;
+  try { status = await api('/config/status'); } catch (_) { status = null; }
+  if (!status || status.configured) return false; // already set up: skip the wizard
+  // Prefill from the server (example config when config.json is absent).
+  let cfgResp;
+  try { cfgResp = await api('/config'); } catch (_) { cfgResp = null; }
+  wizPrefill((cfgResp && cfgResp.config) || EXAMPLE_CONFIG_FALLBACK);
+  wizWire();
+  wizStep = 0;
+  wizShowStep(0);
+  wizEl().overlay.classList.remove('hidden');
+  return true;
+}
+
 // ---------- boot ----------
-loadSummary(); loadBrokers(); loadExposure();
-setInterval(loadSummary, 15000);
-// Reconnect to an in-progress run if the page was opened/reloaded mid-run
-api('/run/status').then(s => { if (s && s.running) { setRunning(true, s.mode); openStream(); startRunPoll(); } }).catch(() => {});
+(async () => {
+  const wizardShown = await initWizard();
+  loadSummary(); loadBrokers(); loadExposure();
+  setInterval(loadSummary, 15000);
+  if (!wizardShown) {
+    // Reconnect to an in-progress run if the page was opened/reloaded mid-run.
+    api('/run/status').then(s => { if (s && s.running) { setRunning(true, s.mode); openStream(); startRunPoll(); } }).catch(() => {});
+  }
+})();
