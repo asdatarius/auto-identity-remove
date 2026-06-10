@@ -37,6 +37,7 @@ const skipIdx   = process.argv.indexOf('--skip');
 const SKIP_ARG  = skipIdx !== -1 ? (process.argv[skipIdx + 1] || '') : null;
 const RETRY_FAILED = process.argv.includes('--retry-failed');
 const LIST_MODE    = process.argv.includes('--list');
+const SCORE_MODE   = process.argv.includes('--score');
 
 const PENDING_MODE    = process.argv.includes('--pending');
 const NO_CAPSOLVER    = process.argv.includes('--no-capsolver');
@@ -66,6 +67,40 @@ if (LIST_MODE) {
     const last   = entry && entry.lastSuccess ? entry.lastSuccess.slice(0, 10) : '-';
     console.log(pad(b.name, 40) + pad(status, 18) + last);
   }
+  console.log('');
+  process.exit(0);
+}
+
+// ── --score: print the exposure score + breakdown + trend, then exit ─────────
+// Read-only: no browser, no forms submitted. Reads state.json and the
+// persisted SERP history; persists a dated snapshot to data/exposure-history.json.
+if (SCORE_MODE) {
+  const brokers = require('./brokers');
+  const state   = loadState();
+  const {
+    computeExposureScore,
+    serpResultsFromHistory,
+    loadExposureHistory,
+    snapshotExposure,
+    formatScoreReport,
+  } = require('./lib/exposure');
+
+  // Reconstruct the SERP signal from persisted history (no live scan).
+  let serpRows = [];
+  const serpHistoryPath = path.join(__dirname, 'data', 'serp-history.json');
+  try {
+    serpRows = JSON.parse(fs.readFileSync(serpHistoryPath, 'utf8'));
+    if (!Array.isArray(serpRows)) serpRows = [];
+  } catch (_) { serpRows = []; }
+  const serpResults = serpResultsFromHistory(serpRows);
+
+  // breachCount defaults to 0 until HIBP integration lands.
+  const summary = computeExposureScore({ state, serpResults, breachCount: 0, brokers });
+
+  const priorHistory = loadExposureHistory();
+  console.log('\n' + formatScoreReport(summary, priorHistory));
+  // Persist this run's snapshot (skipped in dry-run to honor that contract).
+  if (!DRY_RUN) snapshotExposure(summary);
   console.log('');
   process.exit(0);
 }

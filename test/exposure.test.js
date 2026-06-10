@@ -260,3 +260,69 @@ test('loadExposureHistory: returns [] when the file is absent or unparseable', (
     try { fs.unlinkSync(p); } catch (_) {}
   }
 });
+
+// serpResultsFromHistory (reconstruct best-rank summary from history)
+
+const { serpResultsFromHistory, formatScoreReport } = require('../lib/exposure');
+
+test('serpResultsFromHistory: collapses raw serp-history rows into best-rank-per-broker', () => {
+  const rows = [
+    { personId: 'x', broker: 'Spokeo', engine: 'ddg', rank: 5, hostname: 'spokeo.com', scannedAt: '2026-06-01T00:00:00.000Z' },
+    { personId: 'x', broker: 'Spokeo', engine: 'bing', rank: 2, hostname: 'spokeo.com', scannedAt: '2026-06-01T00:00:00.000Z' },
+    { personId: 'x', broker: 'Radaris', engine: 'google', rank: 12, hostname: 'radaris.com', scannedAt: '2026-06-01T00:00:00.000Z' },
+  ];
+  const out = serpResultsFromHistory(rows);
+  const spokeo = out.find(r => r.broker === 'Spokeo');
+  const radaris = out.find(r => r.broker === 'Radaris');
+  assert.ok(spokeo);
+  assert.equal(spokeo.ranks.ddg, 5);
+  assert.equal(spokeo.ranks.bing, 2);
+  assert.equal(spokeo.ranks.google, null);
+  assert.ok(radaris);
+  assert.equal(radaris.ranks.google, 12);
+});
+
+test('serpResultsFromHistory: empty / non-array input -> []', () => {
+  assert.deepEqual(serpResultsFromHistory([]), []);
+  assert.deepEqual(serpResultsFromHistory(null), []);
+  assert.deepEqual(serpResultsFromHistory(undefined), []);
+});
+
+test('serpResultsFromHistory: keeps the lowest rank when a broker/engine repeats', () => {
+  const rows = [
+    { broker: 'Spokeo', engine: 'ddg', rank: 9 },
+    { broker: 'Spokeo', engine: 'ddg', rank: 4 },
+  ];
+  const out = serpResultsFromHistory(rows);
+  assert.equal(out[0].ranks.ddg, 4);
+});
+
+// formatScoreReport (presentational, returns a multi-line string)
+
+test('formatScoreReport: includes the score, each breakdown line, and no trend when history is empty', () => {
+  const summary = { score: 30, breakdown: { listed: 10, serp: 12, breach: 8 }, listedCount: 1, serpHits: 1, breachWeight: 8 };
+  const out = formatScoreReport(summary, []);
+  assert.match(out, /Exposure score/i);
+  assert.match(out, /30\s*\/\s*100/);
+  assert.match(out, /still-listed/i);
+  assert.match(out, /search/i);
+  assert.match(out, /breach/i);
+  assert.match(out, /no previous snapshot/i);
+});
+
+test('formatScoreReport: shows a downward (better) trend vs the last snapshot', () => {
+  const summary = { score: 10, breakdown: { listed: 10, serp: 0, breach: 0 }, listedCount: 1, serpHits: 0, breachWeight: 0 };
+  const history = [{ at: '2026-05-09T00:00:00.000Z', score: 30 }];
+  const out = formatScoreReport(summary, history);
+  // current 10 vs previous 30 -> delta -20 (improvement). Lower is better.
+  assert.match(out, /-20/);
+  assert.match(out, /improv|better|down/i);
+});
+
+test('formatScoreReport: shows an upward (worse) trend vs the last snapshot', () => {
+  const summary = { score: 40, breakdown: { listed: 30, serp: 8, breach: 0 }, listedCount: 3, serpHits: 2, breachWeight: 0 };
+  const history = [{ at: '2026-05-09T00:00:00.000Z', score: 25 }];
+  const out = formatScoreReport(summary, history);
+  assert.match(out, /\+15/);
+  assert.match(out, /worse|up/i);
+});
