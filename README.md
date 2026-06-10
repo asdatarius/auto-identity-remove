@@ -37,15 +37,43 @@ npx playwright install chromium
 git clone https://github.com/stephenlthorn/auto-identity-remove.git
 cd auto-identity-remove
 
-# 2. Install dependencies
-npm install
+# 2. One-command install (checks Node, installs deps + the Chromium browser)
+bash install.sh
 
 # 3. Run interactive setup (creates config.json and schedules the monthly job)
-node setup.js
+./node_modules/.bin/aidr setup
 
-# 4. Run manually anytime
-./run.sh
+# 4. Preview what it will do - submits nothing
+./node_modules/.bin/aidr preview
+
+# 5. Run for real anytime
+./node_modules/.bin/aidr run
 ```
+
+> Tip: run `npm link` (or install globally) so you can type `aidr` directly
+> instead of `./node_modules/.bin/aidr`.
+
+### The `aidr` command
+
+`aidr` is a friendly wrapper around the underlying scripts. Every subcommand
+maps to an existing entrypoint:
+
+| Command | What it does |
+|---------|--------------|
+| `aidr setup` | Interactive first-run setup (creates `config.json`, schedules the monthly job) |
+| `aidr preview` | Dry-run: fills forms but submits nothing |
+| `aidr run` | Runs the opt-out pass for real |
+| `aidr verify` | Re-searches brokers and reports whether you still appear |
+| `aidr score` | Scans search engines for where your name still ranks (SERP scan) |
+| `aidr report` | Lists brokers awaiting an email-confirmation click |
+| `aidr doctor` | Self-diagnoses your environment and configuration |
+| `aidr dashboard` | Starts the local web dashboard and prints its URL + a one-time login |
+
+Pass extra flags straight through, e.g. `aidr run --only Spokeo` or
+`aidr preview --skip BeenVerified`. Run `aidr --help` for the full list.
+
+> A native desktop wrapper (Electron/Tauri) is a planned follow-up and is **not**
+> included here - this release is clean CLI packaging only.
 
 ---
 
