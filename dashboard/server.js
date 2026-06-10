@@ -25,6 +25,8 @@
  *   POST /api/schedule           -> { action: enable|disable|preset, preset? }
  *   GET  /api/auth/whoami        -> current user + credential source
  *   POST /api/auth/password      -> change login (requires current password)
+ *   GET  /api/freeze             -> credit/identity freeze checklist + status
+ *   POST /api/freeze             -> { key, action: done|clear } mark a freeze target
  *
  * Auth (all routes except /api/health, static + API): set AIDR_USER + AIDR_PASS
  *   for HTTP Basic, and/or AIDR_TOKEN for header token auth (X-AIDR-Token). A
@@ -41,20 +43,32 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const { spawn, execFile } = require('child_process');
-const { validateRunRequest } = require('./validate');
+const { validateRunRequest, modeHonorsFilters, classifyStatus, resolveEnvCreds } = require('./validate');
+const { configStatus } = require('./config-status');
+const { FREEZE_TARGETS, TARGET_KEYS, getFreezeStatus } = require('../lib/freeze');
 
 const ROOT = path.resolve(__dirname, '..');
 // Honour the same AIDR_* path overrides as lib/config.js/watcher.js — otherwise
 // the dashboard reads/writes different files than the watcher in a container.
 const CONFIG = process.env.AIDR_CONFIG || path.join(ROOT, 'config.json');
+const CONFIG_ENC = CONFIG + '.enc';
 const STATE = process.env.AIDR_STATE || path.join(ROOT, 'state.json');
 const LOGS = process.env.AIDR_LOG_DIR || path.join(ROOT, 'logs');
 const BROKERS = path.join(ROOT, 'brokers.js');
+const SERP_HISTORY = path.join(process.env.AIDR_DATA || path.join(ROOT, 'data'), 'serp-history.json');
+const secrets = require('../lib/secrets');
+const CONFIG_PASSPHRASE = process.env.AIDR_PASSPHRASE || '';
+const EXPOSURE_LIB = path.join(ROOT, 'lib', 'exposure.js');
 
-const PORT = parseInt(process.env.AIDR_PORT || '8080', 10);
+const PORT = Number.parseInt(process.env.AIDR_PORT, 10) || 8080;
+const HOST = process.env.AIDR_HOST || '127.0.0.1';
 const TOKEN = process.env.AIDR_TOKEN || '';
-const ENV_USER = process.env.AIDR_USER || '';
-const ENV_PASS = process.env.AIDR_PASS || '';
+
+// Validate env credentials: BOTH must be set or neither is used (fix #6).
+const _envCreds = resolveEnvCreds(process.env.AIDR_USER || '', process.env.AIDR_PASS || '');
+if (_envCreds.warning) process.stderr.write(_envCreds.warning + '\n');
+const ENV_USER = _envCreds.envUser;
+const ENV_PASS = _envCreds.envPass;
 const AUTH_FILE = path.join(__dirname, '.auth.json'); // runtime-changeable creds (gitignored)
 const MASK = '••••••••';
 const MAX_LOG_BYTES = 10 * 1024 * 1024; // cap log file reads (avoid OOM / event-loop block)
@@ -83,7 +97,7 @@ function loadCreds() {
     } catch (_) {}
     return { source: 'broken' }; // present but unusable → require auth, deny everything
   }
-  if (ENV_USER || ENV_PASS) return { source: 'env', user: ENV_USER, pass: ENV_PASS };
+  if (ENV_USER && ENV_PASS) return { source: 'env', user: ENV_USER, pass: ENV_PASS };
   return null;
 }
 function checkBasic(u, p) {
@@ -164,6 +178,34 @@ function readJsonMeta(file) {
   try { return { exists: true, data: JSON.parse(raw) }; }
   catch (_) { return { exists: true, parseError: true }; }
 }
+// Envelope-aware config reader. Prefers config.json.enc, else config.json (which
+// may itself be an envelope). Decrypts with the passphrase (AIDR_PASSPHRASE).
+// On a missing/wrong passphrase for an encrypted config, returns parseError so
+// the API surfaces a clear "could not read" instead of leaking ciphertext.
+// opts (for tests): { configPath, encPath, passphrase }.
+function readConfigMeta(opts) {
+  const o = opts || {};
+  const configPath = o.configPath || CONFIG;
+  const encPath    = o.encPath || CONFIG_ENC;
+  const passphrase = o.passphrase !== undefined ? o.passphrase : CONFIG_PASSPHRASE;
+
+  const tryDecrypt = (env) => {
+    if (!passphrase) return { exists: true, parseError: true };
+    try { return { exists: true, data: secrets.decryptConfig(env, passphrase) }; }
+    catch (_) { return { exists: true, parseError: true }; }
+  };
+
+  if (fs.existsSync(encPath)) {
+    let env;
+    try { env = JSON.parse(fs.readFileSync(encPath, 'utf8')); }
+    catch (_) { return { exists: true, parseError: true }; }
+    return tryDecrypt(env);
+  }
+  const m = readJsonMeta(configPath);
+  if (m.exists && m.data && secrets.isEncryptedEnvelope(m.data)) return tryDecrypt(m.data);
+  return m;
+}
+
 // Atomic write: temp file in the same dir, then rename over the target.
 function writeJsonAtomic(file, obj, mode) {
   const tmp = file + '.tmp-' + crypto.randomBytes(4).toString('hex');
@@ -171,11 +213,19 @@ function writeJsonAtomic(file, obj, mode) {
   fs.renameSync(tmp, file);
 }
 
+// Small TTL cache so repeated /api/summary polls don't re-require brokers.js every time.
+const BROKERS_CACHE_TTL = 15000; // 15 seconds
+let _brokersCache = null;
+let _brokersCacheAt = 0;
 function loadBrokers() {
   // brokers.js (parent repo) exports a plain array and reads config.json at
   // require-time; clear its cache so the list reflects config edits.
+  const now = Date.now();
+  if (_brokersCache && now - _brokersCacheAt < BROKERS_CACHE_TTL) return _brokersCache;
   delete require.cache[require.resolve(BROKERS)];
-  try { return require(BROKERS); } catch (e) { return []; }
+  try { _brokersCache = require(BROKERS); } catch (e) { _brokersCache = []; }
+  _brokersCacheAt = now;
+  return _brokersCache;
 }
 
 // Mask secret leaves so they never reach the browser.
@@ -213,36 +263,49 @@ function mergeConfig(existing, incoming) {
   return incoming;
 }
 
-// status vocabulary written by ../watcher.js into state.json optOuts[].history:
-// success / notFound / unverified / pending_confirm / error / dead / manual
-function classifyStatus(raw) {
-  const s = String(raw || '').toLowerCase();
-  if (/success|opted|removed|done|confirmed/.test(s)) return 'opted';
-  if (/pending|await|sent|unverified/.test(s)) return 'pending';
-  return 'other';
-}
+// classifyStatus is imported from validate.js (canonical mapping, browser app.js mirrors this; keep in sync).
+// Status vocab from lib/logger.js: success / notFound / unverified / pending_confirm / error / captcha_failed / dead / manual
 
 // ---- run management -------------------------------------------------------
 const MAX_LINES = 5000;       // ring-buffer cap for the run output
 const REPLAY_LINES = 300;     // how many tail lines a reconnecting SSE client gets
 let run = { running: false, mode: null, startedAt: null, endedAt: null, exitCode: null, pid: null, lines: [] };
 let child = null;
-const sseClients = new Set();
+// Map from res -> keepalive interval, so we can clean up dead clients eagerly.
+const sseClients = new Map();
+
+function removeSSEClient(res) {
+  const ka = sseClients.get(res);
+  if (ka !== undefined) {
+    clearInterval(ka);
+    sseClients.delete(res);
+  }
+}
 
 function pushLine(line) {
   const entry = { t: Date.now(), line };
   run.lines.push(entry);
   if (run.lines.length > MAX_LINES) run.lines.splice(0, run.lines.length - MAX_LINES);
-  for (const res of sseClients) {
-    try { res.write(`data: ${JSON.stringify(entry)}\n\n`); } catch (_) {}
+  for (const [res] of sseClients) {
+    try {
+      res.write(`data: ${JSON.stringify(entry)}\n\n`);
+    } catch (_) {
+      removeSSEClient(res); // dead client - clean up immediately
+    }
   }
 }
-// Idempotent run finalizer — called from BOTH 'close' and 'error' so a failed
+// Idempotent run finalizer - called from BOTH 'close' and 'error' so a failed
 // spawn can never leave run.running stuck true and wedge future runs.
 function finalizeRun(code) {
   if (!run.running) return;
   run.running = false; run.endedAt = Date.now(); run.exitCode = code; run.pid = null; child = null;
-  for (const res of sseClients) { try { res.write(`event: end\ndata: ${code}\n\n`); } catch (_) {} }
+  for (const [res] of sseClients) {
+    try {
+      res.write(`event: end\ndata: ${code}\n\n`);
+    } catch (_) {
+      removeSSEClient(res); // dead client - clean up immediately
+    }
+  }
 }
 
 // Run modes -> watcher.js flags. Verified against ../watcher.js argv parsing:
@@ -264,8 +327,11 @@ const MODE_ARGS = {
 function startRun(mode, opts = {}) {
   if (run.running) return { error: 'a run is already in progress' };
   const args = ['watcher.js', ...(MODE_ARGS[mode] || [])];
-  if (opts.only) { args.push('--only', String(opts.only)); }
-  if (opts.skip) { args.push('--skip', String(opts.skip)); }
+  // Only append filters for modes that actually honour them in watcher.js.
+  if (modeHonorsFilters(mode)) {
+    if (opts.only) { args.push('--only', String(opts.only)); }
+    if (opts.skip) { args.push('--skip', String(opts.skip)); }
+  }
 
   // Reset run state synchronously BEFORE returning so a stream that connects
   // right after the POST sees the fresh run (not the previous run's stale end).
@@ -303,10 +369,31 @@ app.get('/api/state', (_req, res) => {
   res.json(m.data || {});
 });
 
+// GET /api/exposure -> current exposure score (computed from state.json +
+// persisted SERP history) plus the dated snapshot history. The score math
+// lives in the parent repo's lib/exposure.js (pure, unit-tested there).
+app.get('/api/exposure', (_req, res) => {
+  let exposure;
+  try { exposure = require(EXPOSURE_LIB); }
+  catch (e) { return res.status(500).json({ error: 'exposure module unavailable: ' + e.message }); }
+
+  const state = readJsonSafe(STATE, { optOuts: {} });
+  const serpRows = readJsonSafe(SERP_HISTORY, []);
+  const serpResults = exposure.serpResultsFromHistory(Array.isArray(serpRows) ? serpRows : []);
+  const summary = exposure.computeExposureScore({
+    state: state && state.optOuts ? state : { optOuts: {} },
+    serpResults,
+    breachCount: 0,
+    brokers: loadBrokers(),
+  });
+  const history = exposure.loadExposureHistory();
+  res.json({ ...summary, history });
+});
+
 app.get('/api/summary', (_req, res) => {
   const brokers = loadBrokers();
   const sm = readJsonMeta(STATE);
-  const cfg = readJsonMeta(CONFIG).data || null;
+  const cfg = readConfigMeta().data || null;
   const opts = (sm.data && sm.data.optOuts) || {};
   const lastStatus = name => {
     const o = opts[name];
@@ -318,7 +405,7 @@ app.get('/api/summary', (_req, res) => {
   for (const b of brokers) {
     if (b.method === 'manual') { manual++; continue; } // mutually exclusive, matches the table
     const cls = classifyStatus(lastStatus(b.name));
-    if (cls === 'opted') opted++;
+    if (cls === 'ok') opted++;
     else if (cls === 'pending') pending++;
   }
   res.json({
@@ -334,7 +421,7 @@ app.get('/api/summary', (_req, res) => {
 });
 
 app.get('/api/config', (_req, res) => {
-  const m = readJsonMeta(CONFIG);
+  const m = readConfigMeta();
   if (m.parseError) {
     const ex = readJsonSafe(path.join(ROOT, 'config.example.json'), {});
     return res.json({ exists: true, parseError: true, config: maskConfig(ex) });
@@ -344,6 +431,16 @@ app.get('/api/config', (_req, res) => {
     return res.json({ exists: false, config: ex });
   }
   res.json({ exists: true, config: maskConfig(m.data) });
+});
+
+// First-run gate: report whether config.json has the required person identity
+// fields filled (mirrors lib/config.js getPersonsFromConfig). The browser uses
+// this on boot to decide whether to show the onboarding wizard. Absent or
+// unparseable config -> not configured (configStatus(null) flags every field).
+app.get('/api/config/status', (_req, res) => {
+  const m = readJsonMeta(CONFIG);
+  const cfg = m.parseError ? null : (m.data || null);
+  res.json(configStatus(cfg));
 });
 
 app.put('/api/config', (req, res) => {
@@ -392,9 +489,9 @@ app.get('/api/run/stream', (req, res) => {
   const tail = run.lines.slice(-REPLAY_LINES); // only replay the tail, not the whole 5000-line buffer
   for (const e of tail) res.write(`data: ${JSON.stringify(e)}\n\n`);
   if (!run.running && run.exitCode !== null) res.write(`event: end\ndata: ${run.exitCode}\n\n`);
-  sseClients.add(res);
-  const ka = setInterval(() => { try { res.write(': keepalive\n\n'); } catch (_) {} }, 20000);
-  req.on('close', () => { clearInterval(ka); sseClients.delete(res); });
+  const ka = setInterval(() => { try { res.write(': keepalive\n\n'); } catch (_) { removeSSEClient(res); } }, 20000);
+  sseClients.set(res, ka);
+  req.on('close', () => { removeSSEClient(res); });
 });
 
 app.post('/api/run', (req, res) => {
@@ -442,13 +539,25 @@ app.get('/api/schedule', async (_req, res) => {
 
 app.post('/api/schedule', async (req, res) => {
   const { action, preset } = req.body || {};
-  if (action === 'enable') { await sh('systemctl', ['enable', '--now', TIMER]); }
-  else if (action === 'disable') { await sh('systemctl', ['disable', '--now', TIMER]); }
-  else if (action === 'preset' && CALENDARS[preset]) {
+  if (action === 'enable') {
+    const r = await sh('systemctl', ['enable', '--now', TIMER]);
+    if (r.err || (r.err && r.err.code)) {
+      const msg = r.errout.trim() || (r.err && r.err.message) || 'systemctl enable failed';
+      return res.status(500).json({ error: msg });
+    }
+  } else if (action === 'disable') {
+    const r = await sh('systemctl', ['disable', '--now', TIMER]);
+    if (r.err || (r.err && r.err.code)) {
+      const msg = r.errout.trim() || (r.err && r.err.message) || 'systemctl disable failed';
+      return res.status(500).json({ error: msg });
+    }
+  } else if (action === 'preset' && CALENDARS[preset]) {
     const unit = `[Unit]\nDescription=auto-identity-remove ${preset} run\n\n[Timer]\nUnit=aidr.service\nOnCalendar=${CALENDARS[preset]}\nPersistent=true\nRandomizedDelaySec=1800\n\n[Install]\nWantedBy=timers.target\n`;
     try { fs.writeFileSync('/etc/systemd/system/aidr.timer', unit); } catch (e) { return res.status(500).json({ error: e.message }); }
-    await sh('systemctl', ['daemon-reload']);
-    await sh('systemctl', ['restart', TIMER]);
+    const rd = await sh('systemctl', ['daemon-reload']);
+    if (rd.err) return res.status(500).json({ error: rd.errout.trim() || (rd.err && rd.err.message) || 'daemon-reload failed' });
+    const rs = await sh('systemctl', ['restart', TIMER]);
+    if (rs.err) return res.status(500).json({ error: rs.errout.trim() || (rs.err && rs.err.message) || 'restart failed' });
   } else return res.status(400).json({ error: 'bad action' });
   const enabled = (await sh('systemctl', ['is-enabled', TIMER])).out.trim();
   res.json({ ok: true, enabled });
@@ -459,13 +568,52 @@ app.get('/api/version', (_req, res) => {
   res.json({ tool: pkg.version || 'unknown', node: process.version, brokers: loadBrokers().length });
 });
 
+// ---- freeze checklist ------------------------------------------------------
+// Guided credit/identity freeze tracking. GET returns the canonical targets
+// merged with completion status from state.freezes; POST marks a target
+// done/cleared. State is additive - only state.freezes is touched, never
+// state.optOuts. Auth + CSRF are enforced by the global middleware above.
+app.get('/api/freeze', (_req, res) => {
+  const m = readJsonMeta(STATE);
+  const state = (m.exists && !m.parseError && m.data) ? m.data : { optOuts: {} };
+  res.json({ targets: getFreezeStatus(state) });
+});
+
+app.post('/api/freeze', (req, res) => {
+  const { key, action } = req.body || {};
+  if (!TARGET_KEYS.has(key)) return res.status(400).json({ error: `unknown freeze target: ${key}` });
+  if (action !== 'done' && action !== 'clear') return res.status(400).json({ error: 'bad action (expected "done" or "clear")' });
+
+  const m = readJsonMeta(STATE);
+  if (m.parseError) return res.status(409).json({ error: 'state.json could not be parsed' });
+  const state = (m.exists && m.data) ? m.data : { optOuts: {} };
+  if (!state.freezes || typeof state.freezes !== 'object') state.freezes = {};
+
+  if (action === 'done') {
+    state.freezes[key] = { doneAt: new Date().toISOString() };
+  } else {
+    delete state.freezes[key];
+  }
+
+  try {
+    writeJsonAtomic(STATE, state, 0o600);
+    res.json({ ok: true, targets: getFreezeStatus(state) });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
 // ---- static + start -------------------------------------------------------
 app.use(express.static(path.join(__dirname, 'public')));
 
-app.listen(PORT, '0.0.0.0', () => {
-  const c = loadCreds();
-  const mode = authConfigured() ? [c ? `basic(${c.source})` : null, TOKEN ? 'token' : null].filter(Boolean).join('+') : 'OPEN';
-  console.log(`aidr-dashboard listening on :${PORT} (root=${ROOT}, auth=${mode})`);
-  if (c && c.source === 'broken') console.warn('WARNING: .auth.json is present but corrupt — all logins will fail until it is fixed or removed.');
-  if (!authConfigured()) console.warn('WARNING: no credentials set — dashboard is UNAUTHENTICATED. Set AIDR_USER/AIDR_PASS or restrict the network.');
-});
+if (require.main === module) {
+  app.listen(PORT, HOST, () => {
+    const c = loadCreds();
+    const mode = authConfigured() ? [c ? `basic(${c.source})` : null, TOKEN ? 'token' : null].filter(Boolean).join('+') : 'OPEN';
+    console.log(`aidr-dashboard listening on ${HOST}:${PORT} (root=${ROOT}, auth=${mode})`);
+    if (c && c.source === 'broken') console.warn('WARNING: .auth.json is present but corrupt - all logins will fail until it is fixed or removed.');
+    if (!authConfigured()) console.warn('WARNING: no credentials set - dashboard is UNAUTHENTICATED. Set AIDR_USER/AIDR_PASS or restrict the network.');
+  });
+}
+
+module.exports = { app, loadBrokers, maskConfig, mergeConfig, loadCreds, MASK, configStatus, readConfigMeta };

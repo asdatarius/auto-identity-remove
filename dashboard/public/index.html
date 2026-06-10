@@ -14,6 +14,20 @@
   </header>
 
   <main>
+    <section class="card exposure-card" id="exposureCard" aria-label="Exposure score">
+      <div class="exposure-head">
+        <div class="exposure-score">
+          <span class="exposure-num" id="exposureNum">—</span>
+          <span class="exposure-max">/ 100</span>
+        </div>
+        <div class="exposure-meta">
+          <div class="exposure-title">Exposure score <span class="dim">(lower is better)</span></div>
+          <div class="exposure-trend" id="exposureTrend"></div>
+        </div>
+        <div class="exposure-spark" id="exposureSpark" aria-hidden="true"></div>
+      </div>
+      <div class="exposure-breakdown" id="exposureBreakdown"></div>
+    </section>
     <section class="card run-card">
       <div class="run-controls">
         <button class="btn btn-primary" data-mode="preview" title="Fill forms without submitting">▶ Preview (dry-run)</button>
@@ -35,13 +49,15 @@
         <span class="dim adv-label">advanced:</span>
         <button class="btn" data-mode="retry" title="Re-run only brokers that failed last time">↻ Retry failed</button>
         <button class="btn" data-mode="serp" title="Search engine scan for residual listings">🔎 SERP scan</button>
-        <button class="btn" data-mode="snapshot" title="Save a snapshot of current state">📸 Snapshot</button>
+        <button class="btn" data-mode="snapshot" title="Runs REAL opt-out submissions AND saves a page snapshot per broker.">📸 Real run + snapshots</button>
       </div>
-      <pre class="console" id="console" role="log" aria-live="polite" aria-atomic="false" aria-label="Run output"><span class="dim">Console output appears here. Pick an action above.</span></pre>
+      <!-- aria-live="off": high-frequency stream would flood screen readers; run status is announced via #runStatus -->
+      <pre class="console" id="console" role="log" aria-live="off" aria-atomic="false" aria-label="Run output"><span class="dim">Console output appears here. Pick an action above.</span></pre>
     </section>
 
     <nav class="tabs" role="tablist" aria-label="Dashboard sections">
       <button class="tab active" id="tabbtn-brokers" role="tab" aria-selected="true" aria-controls="tab-brokers" data-tab="brokers">Brokers</button>
+      <button class="tab" id="tabbtn-freeze" role="tab" aria-selected="false" aria-controls="tab-freeze" data-tab="freeze">Freeze</button>
       <button class="tab" id="tabbtn-config" role="tab" aria-selected="false" aria-controls="tab-config" data-tab="config">Config</button>
       <button class="tab" id="tabbtn-schedule" role="tab" aria-selected="false" aria-controls="tab-schedule" data-tab="schedule">Schedule</button>
       <button class="tab" id="tabbtn-logs" role="tab" aria-selected="false" aria-controls="tab-logs" data-tab="logs">Logs</button>
@@ -64,6 +80,12 @@
       </table>
     </section>
 
+    <section class="card tab-panel hidden" id="tab-freeze" role="tabpanel" aria-labelledby="tabbtn-freeze">
+      <h3>Credit / identity freeze checklist</h3>
+      <p class="dim">Freezing your credit is the single highest-impact privacy action. Each target requires identity verification, so this is a guided checklist - open the link, complete the freeze, then mark it done. Nothing here is automated.</p>
+      <ul class="freeze-list" id="freezeList"><li class="dim">loading...</li></ul>
+    </section>
+
     <section class="card tab-panel hidden" id="tab-config" role="tabpanel" aria-labelledby="tabbtn-config">
       <div class="config-head">
         <p class="dim" id="configState"></p>
@@ -82,6 +104,10 @@
           <label>Email <input name="person.email" type="email" /></label>
           <label>Phone (digits) <input name="person.phone" /></label>
           <label>Phone formatted <input name="person.phoneFormatted" /></label>
+        </fieldset>
+        <fieldset><legend>Allowlist (keep me listed here)</legend>
+          <label>Brokers to keep listed (comma) <input name="allowlist" placeholder="e.g. Spokeo, BeenVerified" /></label>
+          <p class="dim">Brokers on this list are never opted out and are not flagged by verification. Case-insensitive; match the broker name from the Brokers tab.</p>
         </fieldset>
         <fieldset><legend>CapSolver (CAPTCHA solving)</legend>
           <label>API key <input name="capsolver.apiKey" type="password" placeholder="CAP-…" /></label>
@@ -152,12 +178,93 @@
 
   <div class="modal hidden" id="confirmModal">
     <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="confirmTitle" aria-describedby="confirmDesc">
-      <h3 id="confirmTitle">⚡ Submit real opt-outs?</h3>
+      <h3 id="confirmTitle">⚡ Confirm live action?</h3>
+      <p id="confirmAction" class="dim" style="font-weight:600;margin-bottom:4px;"></p>
       <p id="confirmDesc">This drives a real browser and submits opt-out requests to live data-broker sites using your configured PII. This is not a drill.</p>
       <div class="modal-actions">
         <button class="btn" id="cancelReal">Cancel</button>
-        <button class="btn btn-danger" id="confirmReal">Yes, run for real</button>
+        <button class="btn btn-danger" id="confirmReal">Yes, proceed</button>
       </div>
+    </div>
+  </div>
+
+  <div class="wizard hidden" id="wizard" role="dialog" aria-modal="true" aria-labelledby="wizTitle">
+    <div class="wizard-box">
+      <header class="wizard-head">
+        <h2 id="wizTitle">Welcome - let's set you up</h2>
+        <p class="dim">A few quick questions. Your answers are saved only to this machine's <code>config.json</code> (never sent anywhere else). You can change everything later in the Config tab.</p>
+        <ol class="wizard-steps" id="wizSteps" aria-hidden="true"></ol>
+      </header>
+
+      <form id="wizardForm" class="wizard-form" autocomplete="off">
+        <!-- Step 1: Person -->
+        <section class="wiz-step" data-step="0">
+          <h3>Who are we removing?</h3>
+          <p class="wiz-why dim">Data brokers list people by name and contact details. We need your real name and an email so the opt-out requests can identify and reach you.</p>
+          <label>First name <span class="req">*</span> <input name="person.firstName" required /></label>
+          <label>Last name <span class="req">*</span> <input name="person.lastName" required /></label>
+          <label>Full name <span class="dim">(auto-filled - adjust if you go by something else)</span> <input name="person.fullName" /></label>
+          <label>Aliases <span class="dim">(comma-separated maiden / nicknames brokers might use)</span> <input name="person.aliases" /></label>
+          <label>Email <span class="req">*</span> <input name="person.email" type="email" required /></label>
+          <p class="wiz-err" data-err="0"></p>
+        </section>
+
+        <!-- Step 2: Region / Country -->
+        <section class="wiz-step hidden" data-step="1">
+          <h3>Where are you?</h3>
+          <p class="wiz-why dim">Some brokers are US-only and the request wording (CCPA vs GDPR) depends on your country. City/state/ZIP help match the right person on listing pages.</p>
+          <label>Country <span class="req">*</span> <input name="person.country" placeholder="US" required /></label>
+          <label>City <input name="person.city" /></label>
+          <label>State / Region <span class="dim">(e.g. TX, ON, NSW)</span> <input name="person.state" /></label>
+          <label>ZIP / Postal <span class="dim">(any format: 73301, K1A 0A6, SW1A 1AA)</span> <input name="person.zip" /></label>
+          <label>Phone (digits only) <input name="person.phone" /></label>
+          <label>Phone formatted <span class="dim">(auto for US/CA - leave as typed for other countries)</span> <input name="person.phoneFormatted" /></label>
+          <p class="wiz-err" data-err="1"></p>
+        </section>
+
+        <!-- Step 3: CapSolver (optional) -->
+        <section class="wiz-step hidden" data-step="2">
+          <h3>CAPTCHA solving <span class="dim">- optional, skip for now</span></h3>
+          <p class="wiz-why dim">A few broker sites show a CAPTCHA. A CapSolver key lets the tool solve them automatically. You can skip this and add it later in the Config tab - those brokers will just be logged for manual handling.</p>
+          <label>CapSolver API key <input name="capsolver.apiKey" type="password" placeholder="CAP-... (leave blank to skip)" /></label>
+        </section>
+
+        <!-- Step 4: Email / SMTP (optional) -->
+        <section class="wiz-step hidden" data-step="3">
+          <h3>Sending opt-out emails <span class="dim">- optional</span></h3>
+          <p class="wiz-why dim">Some brokers only accept removal requests by email. With SMTP set up, the tool sends those for you; without it they are logged as "manual". Gmail: host <code>smtp.gmail.com</code>, port 587, use an App Password.</p>
+          <label>SMTP host <input name="email.smtp.host" placeholder="smtp.gmail.com" /></label>
+          <label>Port <input name="email.smtp.port" type="number" placeholder="587" /></label>
+          <label>User <input name="email.smtp.user" placeholder="you@gmail.com" /></label>
+          <label>Password / App-password <input name="email.smtp.pass" type="password" /></label>
+          <label>From <input name="email.smtp.from" placeholder="you@gmail.com" /></label>
+          <p class="wiz-err" data-err="3"></p>
+        </section>
+
+        <!-- Step 5: Notifications (optional) -->
+        <section class="wiz-step hidden" data-step="4">
+          <h3>Notifications <span class="dim">- optional</span></h3>
+          <p class="wiz-why dim">Get a ping when a run finishes. A webhook works on any OS (ntfy.sh, Slack, Discord). iMessage texting is macOS-only. Both are optional.</p>
+          <label>Webhook URL <input name="notify.webhook" placeholder="https://ntfy.sh/your-topic" /></label>
+          <label>Text to (macOS iMessage) <input name="notify.textTo" placeholder="+15125550000" /></label>
+          <p class="wiz-err" data-err="4"></p>
+        </section>
+
+        <!-- Step 6: Review -->
+        <section class="wiz-step hidden" data-step="5">
+          <h3>Review &amp; save</h3>
+          <p class="wiz-why dim">Here is what will be written to <code>config.json</code>. Secrets are shown masked. Go back to change anything.</p>
+          <dl class="wiz-review" id="wizReview"></dl>
+          <p class="wiz-err" data-err="5"></p>
+        </section>
+      </form>
+
+      <footer class="wizard-actions">
+        <button type="button" class="btn" id="wizBack" disabled>Back</button>
+        <button type="button" class="btn" id="wizSkip">Skip this step</button>
+        <button type="button" class="btn btn-primary" id="wizNext">Next</button>
+        <button type="button" class="btn btn-primary hidden" id="wizFinish">Save &amp; finish</button>
+      </footer>
     </div>
   </div>
 

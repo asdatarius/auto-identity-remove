@@ -16,6 +16,16 @@ Each month, the script:
 6. **Sends you an iMessage** with the results summary
 7. **Opens** any sites that require manual action in your browser
 
+Beyond the monthly run, it can also:
+
+- **Score your exposure** - a single 0-100 number with a month-over-month trend (`aidr score`), built from verified removals, search-engine visibility, and breach data
+- **Close the loop** - re-verify removals (`aidr verify`), watch search engines for new listings (`aidr serp-watch`), and generate a monthly PDF report (`aidr report`)
+- **Add teeth** - send CCPA/GDPR right-to-know requests (`aidr know`) and auto-generate regulator complaints when a broker blows the legal deadline (`aidr complaints`)
+- **Protect proactively** - check Have I Been Pwned (`aidr breach`) and walk a credit/identity-freeze checklist (`aidr freeze`)
+- **Stay private** - submit from a masked relay email (SimpleLogin), encrypt `config.json` at rest (AES-256-GCM, opt-in via `AIDR_PASSPHRASE`), and detect success/confirmation text in 6 languages
+- **Run from a browser** - an optional local web dashboard with a first-run config wizard, live run console, and status board (`aidr dashboard`)
+- **Keep coverage fresh** - pull the broker list from the official California (SB 362) and Vermont registries (`aidr update-brokers`), and keep brokers you *want* to stay listed on via an allowlist
+
 ---
 
 ## Requirements
@@ -37,15 +47,53 @@ npx playwright install chromium
 git clone https://github.com/stephenlthorn/auto-identity-remove.git
 cd auto-identity-remove
 
-# 2. Install dependencies
-npm install
+# 2. One-command install (checks Node, installs deps + the Chromium browser)
+bash install.sh
 
 # 3. Run interactive setup (creates config.json and schedules the monthly job)
-node setup.js
+./node_modules/.bin/aidr setup
 
-# 4. Run manually anytime
-./run.sh
+# 4. Preview what it will do - submits nothing
+./node_modules/.bin/aidr preview
+
+# 5. Run for real anytime
+./node_modules/.bin/aidr run
 ```
+
+> Tip: run `npm link` (or install globally) so you can type `aidr` directly
+> instead of `./node_modules/.bin/aidr`.
+
+### The `aidr` command
+
+`aidr` is a friendly wrapper around the underlying scripts. Every subcommand
+maps to an existing entrypoint:
+
+| Command | What it does |
+|---------|--------------|
+| `aidr setup` | Interactive first-run setup (creates `config.json`, schedules the monthly job) |
+| `aidr preview` | Dry-run: fills forms but submits nothing |
+| `aidr run` | Runs the opt-out pass for real |
+| `aidr verify` | Re-searches brokers and reports whether you still appear |
+| `aidr score` | Prints your 0-100 exposure score and its month-over-month trend |
+| `aidr report` | Generates the monthly PDF + emails the summary |
+| `aidr pending` | Lists brokers awaiting an email-confirmation click |
+| `aidr serp` | Scans search engines for where your name still ranks |
+| `aidr serp-watch` | Scans and alerts only when your name appears on a NEW domain |
+| `aidr breach` | Checks Have I Been Pwned and recommends a credit freeze on high-severity breaches |
+| `aidr freeze` | Shows the credit/identity-freeze checklist and its status |
+| `aidr complaints` | Generates regulator complaints for brokers past the CCPA/GDPR deadline |
+| `aidr know` | Sends CCPA/GDPR right-to-know requests |
+| `aidr update-brokers` | Refreshes the broker list from the CA + Vermont registries |
+| `aidr list` | Lists configured brokers and their last-known status |
+| `aidr doctor` | Self-diagnoses your environment and configuration |
+| `aidr dashboard` | Starts the local web dashboard and prints its URL + a one-time login |
+
+Pass extra flags straight through, e.g. `aidr run --only Spokeo` or
+`aidr preview --skip BeenVerified`. Run `aidr --help` for the full list.
+Every subcommand maps to the equivalent `node watcher.js --<flag>` invocation.
+
+> A native desktop wrapper (Electron/Tauri) is a planned follow-up and is **not**
+> included here - this release is clean CLI packaging only.
 
 ---
 
@@ -326,6 +374,10 @@ A dated JSON report is saved to `logs/verify-YYYY-MM-DD.json`.
 - "Still listed" can mean the opt-out failed **or** the broker re-added your data since the last successful opt-out was recorded. Either way, re-running `node watcher.js` will attempt removal again.
 - If the broker's search page is down or slow, the result is classified as `unverifiable` (a timeout is not counted as "still listed").
 
+### Continuous SERP monitoring (`--serp-watch`)
+
+`node watcher.js --serp-watch` runs a search-engine scan, diffs the broker domains it finds against the previous `data/serp-history.json` snapshot, and dispatches an alert (via `lib/notify.js` `dispatchNotify`: macOS toast/iMessage, Linux `notify-send`, and/or the `notify.webhook` URL) only when your name appears on a NEW domain. Because the scan appends to `data/serp-history.json`, repeated runs diff against the prior run. Add `--serp-watch` to `run.sh` to have the existing monthly scheduler watch for new exposures.
+
 ---
 
 ## Experimental: noise mode
@@ -352,6 +404,18 @@ Only brokers tagged `acceptsBogus: true` in `brokers.js` will receive noise subm
 ---
 
 ## Maintenance
+
+### Refreshing the broker list (`--update-brokers`)
+
+The bundled Markup dataset is from January 2023 and is increasingly stale. Refresh the broker coverage from the official, auto-updating state data-broker registries:
+
+```bash
+node watcher.js --update-brokers
+```
+
+This fetches the California (SB-362) and Vermont registries over HTTP (no browser is launched), normalizes each entry, dedups it by hostname against the explicit brokers in `brokers.js`, and writes `data/feeds-brokers.json`. The generic runner loads that file alongside the Markup dataset on the next run; the Markup data stays as the fallback, so a failed or skipped refresh never reduces coverage. Override the registry URLs with the `CA_REGISTRY_URL` / `VT_REGISTRY_URL` environment variables if the official endpoints move.
+
+---
 
 ### Pruning stale / dead URLs
 

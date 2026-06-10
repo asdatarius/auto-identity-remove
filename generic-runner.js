@@ -28,11 +28,13 @@ const CONFIG_PATH     = process.env.AIDR_CONFIG || path.join(__dirname, 'config.
 const STATE_PATH      = process.env.AIDR_STATE  || path.join(__dirname, 'state.json');
 const MARKUP_PATH     = path.join(__dirname, 'data', 'markup-parsed.json');
 const BADBOOL_PATH    = path.join(__dirname, 'data', 'badbool-extra.json');
+const FEEDS_PATH      = path.join(__dirname, 'data', 'feeds-brokers.json');
 const DEAD_URLS_PATH  = path.join(__dirname, 'data', 'dead-urls.json');
 
 const { detectConfirmationRequired } = require('./lib/confirm');
 const { CONFIRM_RECHECK_DAYS } = require('./lib/config');
 const { withRetry } = require('./lib/retry');
+const { isAllowlisted } = require('./lib/filter');
 
 // Config is loaded lazily so that modules importing only the pure helpers
 // (classifyNavError, isDeadStatus, loadDeadSet) don't require config.json.
@@ -285,6 +287,14 @@ async function submitForm(page) {
 // ─── Process one generic URL ──────────────────────────────────────────────────
 
 async function processGenericUrl(page, broker, state, dryRun = false, injectedDeadSet) {
+  // Allowlist: the user explicitly wants to stay listed on this host, so never
+  // navigate or submit. Returned before any network request.
+  let allowCfg = null;
+  try { allowCfg = getConfig(); } catch (_) { allowCfg = null; }
+  if (isAllowlisted(broker.name, allowCfg)) {
+    return { status: 'allowlisted', detail: 'on allowlist - keeping listing, no opt-out submitted' };
+  }
+
   // WP4: if the entry is in pending-confirmation state, use the shorter 14-day
   // re-check window so the user has a chance to click the confirmation link.
   const entry = state.optOuts[broker.name];
@@ -413,6 +423,30 @@ function loadGenericBrokers(explicitBrokerHosts) {
     }
   }
 
+  // Live registry feeds (California + Vermont), written by
+  // `node watcher.js --update-brokers` to data/feeds-brokers.json. Loaded after
+  // Markup/BADBOOL so the Markup dataset stays the fallback and feed entries are
+  // deduped against everything already loaded. Each row is the normalized shape
+  // { name, optOutUrl, method, source }; the generic runner navigates `url`, so
+  // url-less manual rows are skipped here.
+  if (fs.existsSync(FEEDS_PATH)) {
+    try {
+      const feeds = JSON.parse(fs.readFileSync(FEEDS_PATH, 'utf8'));
+      if (Array.isArray(feeds)) {
+        for (const row of feeds) {
+          const url = row && row.optOutUrl;
+          if (!url || !url.startsWith('http')) continue;
+          try {
+            const host = new URL(url).hostname.replace(/^www\./, '');
+            if (seen.has(host)) continue;
+            seen.add(host);
+            brokers.push({ name: row.name || host, url, source: row.source || 'feed' });
+          } catch(_) {}
+        }
+      }
+    } catch(_) {}
+  }
+
   return brokers;
 }
 
@@ -438,6 +472,8 @@ function classifyOutcome(status, detail) {
       return 'no_form_found';
     case 'error':
       return 'error';
+    case 'allowlisted':
+      return 'allowlisted';
     case 'skipped':
       // Distinguish dry-run skips from recently-visited skips via detail text
       if (detail && detail.includes('dry-run')) return 'dry-run-skipped';
