@@ -17,6 +17,7 @@ const { findDefunct, DEFUNCT_THRESHOLD } = require('./lib/defunct');
 const { sendText, desktopNotify, openInBrowser } = require('./lib/notify');
 const brokerRunner = require('./lib/broker-runner');
 const { sendOptOutEmails } = require('./lib/email');
+const { getSubmissionEmail } = require('./lib/relay');
 const lock = require('./lib/lock');
 const { applyFilter, loadLastLog, extractFailedBrokers } = require('./lib/filter');
 const { addToAllowlist, removeFromAllowlist, parseAllowlistArgs } = require('./lib/allowlist-edit');
@@ -815,12 +816,21 @@ async function _mainBody() {
       console.log('='.repeat(54));
     }
 
-    brokerRunner.configure({ dryRun: DRY_RUN, preview: PREVIEW, person, capsolver: config.capsolver, noCapsolver: NO_CAPSOLVER, snapshot: SNAPSHOT, personCount: persons.length, config });
+    // Resolve a masked/relay submission email for this person (cached in
+    // state.relayAliases by lib/relay). Returns person.email unchanged when no
+    // relay is configured, so existing setups are unaffected. Persisted later
+    // by the run's saveState().
+    const submissionEmail = await getSubmissionEmail({ config, person, state });
+    if (submissionEmail && submissionEmail !== person.email) {
+      console.log(`   Using masked email for submissions: ${submissionEmail}`);
+    }
 
-    // Email opt-outs (no browser needed — skipped in verify mode)
+    brokerRunner.configure({ dryRun: DRY_RUN, preview: PREVIEW, person, capsolver: config.capsolver, noCapsolver: NO_CAPSOLVER, snapshot: SNAPSHOT, personCount: persons.length, config, submissionEmail });
+
+    // Email opt-outs (no browser needed - skipped in verify mode)
     if (!VERIFY) {
       console.log('── Email opt-outs ─────────────────────────────────────────');
-      await sendOptOutEmails(brokers, config);
+      await sendOptOutEmails(brokers, config, undefined, { submissionEmailFor: (p) => (p === person ? submissionEmail : undefined) });
     }
 
     const filterOpts = {
