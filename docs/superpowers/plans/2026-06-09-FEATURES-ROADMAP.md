@@ -1,5 +1,7 @@
 # auto-identity-remove - Feature Roadmap (2026-06-09)
 
+> **STATUS: ALL 14 SHIPPED.** Every plan below was implemented TDD, merged to `main`, and is green in CI. The test suite grew from 645 to 1067 root + 70 dashboard tests, with zero new npm dependencies. This document is retained as the design record; the checkboxes inside each linked plan reflect the as-built implementation. The dependency chains landed as designed: right-to-know's `knowRequestedAt` feeds regulatory-escalation, monthly-report's Playwright `page.pdf` pattern is reused by complaints, and HIBP's breach count enriches the exposure score. The `aidr` CLI exposes each feature as a subcommand (see the README command table).
+
 These 14 plans push the tool past "submits opt-outs and hopes" toward a product a non-technical person can trust and actually benefit from. They cluster into three goals: **close the loop** (prove removal happened and keep it gone), **lower the barrier to entry** (onboard without editing JSON or living in a terminal), and **add regulatory teeth** (know-requests and complaints when brokers ignore the law). Every plan is TDD, CommonJS, hermetic-tested, and adds **zero new npm dependencies** - everything rides on Node built-ins, the global `fetch`, the already-present Playwright, and the existing optional `nodemailer`.
 
 Each plan is self-contained and executable by a fresh Sonnet instance task-by-task. Steps use `- [ ]` checkboxes; follow superpowers:subagent-driven-development or superpowers:executing-plans.

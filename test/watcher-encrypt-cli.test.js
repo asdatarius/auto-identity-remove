@@ -21,7 +21,11 @@ const PLAIN = { person: { firstName: 'Alan', lastName: 'Turing' }, capsolver: { 
 // Build a minimal temp "repo" so the run is hermetic. watcher.js + lib/ resolve
 // their paths from __dirname, so copying them into a temp dir (with a temp
 // config.json) means the real repo's config.json/state.json are never touched.
-// node_modules is symlinked so Playwright etc. resolve if any require touches them.
+//
+// No node_modules is needed: every npm dependency (Playwright, axios, nodemailer)
+// is lazy-required inside the functions that use them, and --encrypt-config /
+// --decrypt-config exit before any of those run. So the load-time require chain
+// is pure Node built-ins + the repo's own lib/ modules.
 function buildTempRepo() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'aidr-watcher-'));
   fs.copyFileSync(path.join(REPO, 'watcher.js'), path.join(dir, 'watcher.js'));
@@ -30,24 +34,6 @@ function buildTempRepo() {
   // brokers.js is required by some modes but NOT by --encrypt-config; copy it
   // anyway so any require at load time resolves.
   fs.copyFileSync(path.join(REPO, 'brokers.js'), path.join(dir, 'brokers.js'));
-  // node_modules: symlink to the real one so playwright etc. resolve if touched.
-  // The worktree may not have its own node_modules; walk up to find the real one.
-  const realNodeModules = (() => {
-    let d = REPO;
-    for (let i = 0; i < 5; i++) {
-      const nm = path.join(d, 'node_modules');
-      if (fs.existsSync(nm)) return nm;
-      const parent = path.dirname(d);
-      if (parent === d) break;
-      d = parent;
-    }
-    return null;
-  })();
-  if (realNodeModules) {
-    try {
-      fs.symlinkSync(realNodeModules, path.join(dir, 'node_modules'), 'dir');
-    } catch (_) { /* best effort; --encrypt-config exits before playwright */ }
-  }
   return dir;
 }
 
