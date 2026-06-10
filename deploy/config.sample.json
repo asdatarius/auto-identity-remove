@@ -1,0 +1,74 @@
+{
+  "_comment": "Place this at <NAS volume>/config.json (the path mapped to /data). Use the 'persons' array for one or more people (whole family in one config). For a single person you can use a single 'person' object instead. Lines starting with _ are comments — real JSON has no comments, so this file IS valid JSON; just edit the values.",
+
+  "persons": [
+    {
+      "firstName": "John",
+      "lastName": "Smith",
+      "fullName": "John Smith",
+      "aliases": ["Johnny Smith"],
+      "city": "Austin",
+      "country": "US",
+      "state": "TX",
+      "zip": "73301",
+      "email": "john@example.com",
+      "phone": "5125550001",
+      "phoneFormatted": "(512) 555-0001"
+    },
+    {
+      "firstName": "Jane",
+      "lastName": "Smith",
+      "fullName": "Jane Smith",
+      "aliases": ["Jane Doe"],
+      "city": "Austin",
+      "country": "US",
+      "state": "TX",
+      "zip": "73301",
+      "email": "jane@example.com",
+      "phone": "5125550002",
+      "phoneFormatted": "(512) 555-0002"
+    }
+  ],
+
+  "capsolver": {
+    "_comment": "Your CapSolver key — shared across all persons. Required on a headless NAS for CAPTCHA-protected brokers (no manual fallback possible).",
+    "apiKey": "CAP-YOUR_KEY_HERE"
+  },
+
+  "accounts": {
+    "_comment": "Optional shared site logins. Per-person opt-out usually doesn't need these — leave blank unless a broker requires an account.",
+    "spokeo":       { "email": "", "password": "" },
+    "beenverified": { "email": "", "password": "" },
+    "mylife":       { "email": "", "password": "" }
+  },
+
+  "notify": {
+    "_comment": "iMessage (textTo) is macOS-only — leave blank on a NAS. Pick ONE of the options below (delete the others). One summary is sent per run.",
+
+    "_option_discord": "Discord: copy the channel webhook URL and APPEND /slack to it (Discord rejects the plain payload on its native endpoint). e.g. https://discord.com/api/webhooks/<ID>/<TOKEN>/slack",
+    "_option_ntfy": "ntfy (free): set webhook to https://ntfy.sh/<a-topic-you-invent-yourself> — anyone who knows the topic can read it, so make it long and random. Install the ntfy app and subscribe to the same topic. Self-host later by swapping the host.",
+    "_option_telegram": "Telegram: create a bot via @BotFather (get botToken), message it once, then get chatId from https://api.telegram.org/bot<token>/getUpdates. Use the 'telegram' block instead of 'webhook'.",
+
+    "textTo": "",
+    "webhook": "",
+
+    "_telegram_note": "To use Telegram instead, blank out 'webhook' above and fill this in:",
+    "telegram": {
+      "botToken": "",
+      "chatId": ""
+    }
+  },
+
+  "email": {
+    "_comment": "Optional SMTP for email-based opt-outs. One sending mailbox sends on behalf of everyone. Gmail needs an App Password.",
+    "smtp": {
+      "host": "smtp.gmail.com",
+      "port": 587,
+      "user": "you@gmail.com",
+      "pass": "YOUR_GMAIL_APP_PASSWORD",
+      "from": "you@gmail.com"
+    }
+  },
+
+  "profileDir": "/data/profile"
+}

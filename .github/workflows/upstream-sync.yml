@@ -1,0 +1,99 @@
+name: upstream-sync
+
+# Weekly: checks stephenlthorn/auto-identity-remove for new commits and, if there
+# are any, opens a PR that merges upstream into your main. You review it (resolving
+# conflicts in your patched files if needed) and merge — merging triggers
+# build-and-push, which publishes the updated image.
+#
+# Requires (Settings → Actions → General → Workflow permissions):
+#   - "Read and write permissions"
+#   - "Allow GitHub Actions to create and approve pull requests"  ✅
+
+on:
+  schedule:
+    - cron: '0 7 * * 1'   # Mondays 07:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+env:
+  UPSTREAM: https://github.com/stephenlthorn/auto-identity-remove.git
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure git + fetch upstream
+        run: |
+          git config user.name  "upstream-sync[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git remote add upstream "$UPSTREAM" 2>/dev/null || git remote set-url upstream "$UPSTREAM"
+          git fetch upstream --no-tags
+
+      - name: Stop if already up to date
+        id: check
+        run: |
+          if git merge-base --is-ancestor upstream/main origin/main; then
+            echo "Nothing new upstream."
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      # `gh pr view <branch>` would also match a MERGED/CLOSED PR (it resolves the
+      # most recently associated one), which would make every future sync silently
+      # skip PR creation — so count open PRs explicitly.
+      - name: Check for an open sync PR
+        if: steps.check.outputs.changed == 'true'
+        id: pr
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          OPEN=$(gh pr list --head upstream-sync --state open --json number --jq 'length')
+          echo "open=$OPEN" >> "$GITHUB_OUTPUT"
+          if [ "$OPEN" != "0" ]; then
+            # Don't force-push over the branch: the PR body tells the user to push
+            # manual conflict resolutions to it, and a rebuild would destroy them.
+            echo "An open upstream-sync PR exists; leaving its branch untouched."
+          fi
+
+      - name: Build merge branch
+        if: steps.check.outputs.changed == 'true' && steps.pr.outputs.open == '0'
+        id: merge
+        run: |
+          BRANCH="upstream-sync"
+          git checkout -B "$BRANCH" origin/main
+          if git merge --no-edit upstream/main; then
+            echo "conflict=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "conflict=true" >> "$GITHUB_OUTPUT"
+            # Keep conflict markers in the tree so the PR shows exactly what to resolve.
+            git add -A
+            git commit -m "merge upstream/main (CONFLICTS — resolve before merging)"
+          fi
+          git push -f origin "$BRANCH"
+          echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
+
+      - name: Open PR
+        if: steps.check.outputs.changed == 'true' && steps.pr.outputs.open == '0'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          BODY="Automated weekly upstream sync.
+
+          **Conflicts:** \`${{ steps.merge.outputs.conflict }}\`
+
+          If conflicts is \`true\`, check out the \`upstream-sync\` branch, resolve the
+          markers (your patched files: lib/config.js, watcher.js, lib/notify.js), then
+          push. NOTE: a conflicted PR must not be merged as-is — the markers would
+          ship in the published image. Merging this PR triggers build-and-push and
+          publishes a new image. Review the upstream diff before merging — this tool
+          handles real PII."
+          gh pr create --base main --head "${{ steps.merge.outputs.branch }}" \
+            --title "Upstream sync" --body "$BODY"

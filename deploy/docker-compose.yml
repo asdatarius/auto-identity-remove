@@ -1,0 +1,24 @@
+# auto-identity-remove — Portainer stack (NAS edition)
+#
+# In Portainer: Stacks → Add stack → Web editor → paste this → deploy.
+# Edit the four marked spots: image namespace, TZ, PUID/PGID, and the volume path.
+#
+# The container is long-running: supercronic inside it fires the monthly opt-out
+# on CRON_SCHEDULE. Nothing on the NAS host needs to be scheduled.
+
+services:
+  auto-identity-remove:
+    image: asdatarius/auto-identity-remove:latest    # your Docker Hub image
+    container_name: auto-identity-remove
+    restart: unless-stopped
+    environment:
+      TZ: "Europe/Amsterdam"          # <-- (2) your timezone (cron fires in this TZ)
+      CRON_SCHEDULE: "0 9 1 * *"      # 09:00 on the 1st of each month
+      RUN_ON_START: "false"           # "true" = also run once immediately on (re)deploy
+      HEADLESS: "1"                   # required on a headless NAS
+      PUID: "1000"                    # <-- (3) uid that owns the volume path below
+      PGID: "1000"                    # <-- (3) gid that owns the volume path below
+      # WATCHER_ARGS: "--no-capsolver"  # optional extra flags passed to watcher.js
+    volumes:
+      # <-- (4) NAS host path : container /data  (holds config.json, state.json, logs, browser profile)
+      - /volume1/docker/auto-identity-remove:/data
