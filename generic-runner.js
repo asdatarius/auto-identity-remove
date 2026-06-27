@@ -30,15 +30,17 @@ const FEEDS_PATH      = path.join(__dirname, 'data', 'feeds-brokers.json');
 const DEAD_URLS_PATH  = path.join(__dirname, 'data', 'dead-urls.json');
 
 const { detectConfirmationRequired } = require('./lib/confirm');
-const { CONFIRM_RECHECK_DAYS } = require('./lib/config');
+const { CONFIRM_RECHECK_DAYS, loadConfig } = require('./lib/config');
 const { withRetry } = require('./lib/retry');
 const { isAllowlisted } = require('./lib/filter');
 
 // Config is loaded lazily so that modules importing only the pure helpers
 // (classifyNavError, isDeadStatus, loadDeadSet) don't require config.json.
+// Routed through loadConfig (not raw JSON.parse) so that encrypted configs
+// (--encrypt-config) are decrypted transparently via AIDR_PASSPHRASE.
 let _config = null;
 function getConfig() {
-  if (!_config) _config = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'));
+  if (!_config) _config = loadConfig();
   return _config;
 }
 
