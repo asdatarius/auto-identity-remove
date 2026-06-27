@@ -30,16 +30,31 @@ const FEEDS_PATH      = path.join(__dirname, 'data', 'feeds-brokers.json');
 const DEAD_URLS_PATH  = path.join(__dirname, 'data', 'dead-urls.json');
 
 const { detectConfirmationRequired } = require('./lib/confirm');
-const { CONFIRM_RECHECK_DAYS } = require('./lib/config');
+const { CONFIRM_RECHECK_DAYS, loadConfig } = require('./lib/config');
 const { withRetry } = require('./lib/retry');
 const { isAllowlisted } = require('./lib/filter');
 
 // Config is loaded lazily so that modules importing only the pure helpers
 // (classifyNavError, isDeadStatus, loadDeadSet) don't require config.json.
+// Routed through loadConfig (not raw JSON.parse) so that encrypted configs
+// (--encrypt-config) are decrypted transparently via AIDR_PASSPHRASE.
 let _config = null;
 function getConfig() {
-  if (!_config) _config = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf8'));
+  if (!_config) {
+    // loadConfig() calls process.exit(1) when config is absent; avoid that by
+    // checking existence first so callers that wrap in try/catch can handle it.
+    const encPath = CONFIG_PATH + '.enc';
+    if (!fs.existsSync(encPath) && !fs.existsSync(CONFIG_PATH)) {
+      throw new Error('No config found; run node setup.js to create one');
+    }
+    _config = loadConfig();
+  }
   return _config;
+}
+// Test-only: inject a pre-parsed config object to avoid I/O and allow test
+// isolation without patching fs. Reset to null to re-enable lazy loading.
+function _setConfig(cfg) {
+  _config = cfg || null;
 }
 
 const RECHECK_DAYS = 90;
@@ -585,4 +600,4 @@ async function runGenericBrokers(context, explicitBrokerHosts, state, logResult,
   };
 }
 
-module.exports = { runGenericBrokers, loadGenericBrokers, classifyNavError, classifyOutcome, isDeadStatus, loadDeadSet, DEAD_URLS_PATH };
+module.exports = { runGenericBrokers, loadGenericBrokers, classifyNavError, classifyOutcome, isDeadStatus, loadDeadSet, DEAD_URLS_PATH, _setConfig };
