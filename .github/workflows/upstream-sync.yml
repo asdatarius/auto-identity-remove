@@ -8,6 +8,8 @@ name: upstream-sync
 # Requires (Settings → Actions → General → Workflow permissions):
 #   - "Read and write permissions"
 #   - "Allow GitHub Actions to create and approve pull requests"  ✅
+# Because this repo is a FORK, GITHUB_TOKEN cannot open PRs here — the "Open PR" step
+# uses a PAT in the SYNC_PAT secret (scoped to this repo, Contents + Pull requests: write).
 
 on:
   schedule:
@@ -83,7 +85,11 @@ jobs:
       - name: Open PR
         if: steps.check.outputs.changed == 'true' && steps.pr.outputs.open == '0'
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # GITHUB_TOKEN cannot create PRs in a *fork* (this repo is a fork of
+          # stephenlthorn/auto-identity-remove) even with pull-requests: write and the
+          # repo toggle enabled — it fails with "Resource not accessible by integration".
+          # Use a PAT (SYNC_PAT) with Contents + Pull requests: write scoped to this repo.
+          GH_TOKEN: ${{ secrets.SYNC_PAT }}
         run: |
           BODY="Automated weekly upstream sync.
 
