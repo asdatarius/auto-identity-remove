@@ -8,8 +8,11 @@ name: upstream-sync
 # Requires (Settings → Actions → General → Workflow permissions):
 #   - "Read and write permissions"
 #   - "Allow GitHub Actions to create and approve pull requests"  ✅
-# Because this repo is a FORK, GITHUB_TOKEN cannot open PRs here — the "Open PR" step
-# uses a PAT in the SYNC_PAT secret (scoped to this repo, Contents + Pull requests: write).
+# Because this repo is a FORK with an `upstream` remote, gh resolves the PR target to
+# the PARENT repo (stephenlthorn's) unless --repo pins it - so every gh call passes
+# --repo. The "Open PR" step uses a PAT in the SYNC_PAT secret (scoped to this repo,
+# Contents + Pull requests: write): PRs created with GITHUB_TOKEN don't trigger the
+# pull_request CI workflow, so the sync PR would show no checks.
 
 on:
   schedule:
@@ -57,7 +60,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          OPEN=$(gh pr list --head upstream-sync --state open --json number --jq 'length')
+          OPEN=$(gh pr list --repo "$GITHUB_REPOSITORY" --head upstream-sync --state open --json number --jq 'length')
           echo "open=$OPEN" >> "$GITHUB_OUTPUT"
           if [ "$OPEN" != "0" ]; then
             # Don't force-push over the branch: the PR body tells the user to push
@@ -85,10 +88,11 @@ jobs:
       - name: Open PR
         if: steps.check.outputs.changed == 'true' && steps.pr.outputs.open == '0'
         env:
-          # GITHUB_TOKEN cannot create PRs in a *fork* (this repo is a fork of
-          # stephenlthorn/auto-identity-remove) even with pull-requests: write and the
-          # repo toggle enabled — it fails with "Resource not accessible by integration".
-          # Use a PAT (SYNC_PAT) with Contents + Pull requests: write scoped to this repo.
+          # Without --repo, gh infers the PR target from the git remotes and - because
+          # this repo is a fork with an `upstream` remote - picks the parent repo, where
+          # neither token can create PRs ("Resource not accessible"). SYNC_PAT (Contents +
+          # Pull requests: write, scoped to this repo) rather than GITHUB_TOKEN so the
+          # created PR triggers the pull_request CI workflow.
           GH_TOKEN: ${{ secrets.SYNC_PAT }}
         run: |
           BODY="Automated weekly upstream sync.
@@ -101,5 +105,5 @@ jobs:
           ship in the published image. Merging this PR triggers build-and-push and
           publishes a new image. Review the upstream diff before merging — this tool
           handles real PII."
-          gh pr create --base main --head "${{ steps.merge.outputs.branch }}" \
+          gh pr create --repo "$GITHUB_REPOSITORY" --base main --head "${{ steps.merge.outputs.branch }}" \
             --title "Upstream sync" --body "$BODY"
