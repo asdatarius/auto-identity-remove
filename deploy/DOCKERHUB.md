@@ -89,7 +89,7 @@ Holds everything that must persist (mount one folder):
 ## Tags
 - `latest` — current build
 - `1.0.x` — pinned versions (1.0.6+: upstream relay/allowlist/encryption/HIBP/score features)
-- `sha-<commit>` — exact source commit
+- `YYYYMMDD` (e.g. `20260728`) — build date, for pinning to a known-good day
 
 ## Notes
 - **"Submitted" ≠ "deleted."** Use `run-now --verify` to spot-check.

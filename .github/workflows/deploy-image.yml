@@ -42,8 +42,7 @@ jobs:
           images: ${{ secrets.DOCKERHUB_USERNAME }}/auto-identity-remove
           tags: |
             type=raw,value=latest
-            type=sha,format=short
-            type=schedule,pattern={{date 'YYYYMMDD'}}
+            type=raw,value={{date 'YYYYMMDD'}}
 
       - name: Build and push (amd64 + arm64)
         uses: docker/build-push-action@v6
