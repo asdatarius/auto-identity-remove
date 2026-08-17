@@ -1,12 +1,33 @@
-version: "3.9"
+# docker-compose.yml - auto-identity-remove
+#
+# One-off run:        docker compose run --rm watcher
+# Preview only:       docker compose run --rm watcher node watcher.js --dry-run
+#
+# For a scheduled monthly run, use cron/systemd on the host (or DSM Task
+# Scheduler on a Synology) to invoke `docker compose run --rm watcher`.
+# docs/SYNOLOGY.md has a worked NAS example.
+
 services:
   watcher:
     build: .
+    # node runs as PID 1 without this, so `docker stop` cannot reap the Chromium
+    # children and the state lock is left behind - wedging the next run.
+    init: true
     volumes:
-      - ./config.json:/app/config.json:ro
-      - ./logs:/app/logs
+      # Not :ro - config.json is written back by --encrypt-config and by the
+      # right-to-know pending-request bookkeeping.
+      - ./config.json:/app/config.json
       - ./state.json:/app/state.json
+      - ./logs:/app/logs
     environment:
       - NODE_ENV=production
-    # Run once on `docker compose run watcher`
-    # For scheduled runs, use cron on the host or a separate scheduler container
+      # Container clocks are UTC. The scheduler and the report timestamps use
+      # local time, so set this to your zone or a "1st of the month, 9am" run
+      # lands at the wrong hour.
+      - TZ=${TZ:-UTC}
+      # Set to 1 on hosts with ~2GB RAM. See docs/SYNOLOGY.md.
+      - AIDR_LOW_MEMORY=${AIDR_LOW_MEMORY:-0}
+    # Docker defaults /dev/shm to 64MB; Chromium renderers exhaust that and die.
+    # The code also passes --disable-dev-shm-usage so a plain `docker run`
+    # without this setting still works, but a real shm is faster.
+    shm_size: 512mb

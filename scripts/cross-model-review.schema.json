@@ -1,0 +1,33 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["summary", "findings"],
+  "properties": {
+    "summary": {
+      "type": "string",
+      "description": "Two or three sentences: what was reviewed, and whether any P1 exists. Say so explicitly if there is no P1 rather than inflating a P2."
+    },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["severity", "file", "line", "title", "what", "trigger", "impact", "fix"],
+        "properties": {
+          "severity": {
+            "type": "string",
+            "enum": ["P1", "P2", "P3"],
+            "description": "P1 = privacy leak, security hole, data loss, or a false 'removed' report, reachable in normal or plausible-adversarial use. P2 = real bug with a narrower blast radius. P3 = worth fixing, not urgent."
+          },
+          "file": { "type": "string", "description": "Repo-relative path." },
+          "line": { "type": "integer", "description": "Real line number, verified by reading the file." },
+          "title": { "type": "string" },
+          "what": { "type": "string", "description": "The defect, precisely." },
+          "trigger": { "type": "string", "description": "Concrete inputs or state that reach it." },
+          "impact": { "type": "string", "description": "What the user actually loses." },
+          "fix": { "type": "string", "description": "The smallest correct change." }
+        }
+      }
+    }
+  }
+}

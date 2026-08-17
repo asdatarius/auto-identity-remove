@@ -118,7 +118,7 @@ test('broker with timeoutMs: 0 (falsy) → page.goto called with default timeout
     optOutUrl: 'https://zero.example.com/optout',
     formFields: {},
     captchaLikely: false,
-    timeoutMs: 0, // falsy — should fall back to default
+    timeoutMs: 0, // falsy - should fall back to default
   };
 
   await processBrokerWithPerson(makeContext(), broker, PERSON);

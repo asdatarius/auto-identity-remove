@@ -1,7 +1,7 @@
 /**
  * test/verify-loop.test.js
  *
- * Tests for lib/verify-loop.js — T+7 day post-submit verification loop.
+ * Tests for lib/verify-loop.js - T+7 day post-submit verification loop.
  *
  * Verified behaviours:
  *  1. lastSuccess 8 days ago, listing absent  → verified_clear bucket + verifiedDeletedAt written
@@ -40,7 +40,7 @@ function daysAgo(n) {
   return new Date(Date.now() - n * 24 * 60 * 60 * 1000).toISOString();
 }
 
-/** Fake Playwright context — newPage() returns a stub. */
+/** Fake Playwright context - newPage() returns a stub. */
 function makeContext() {
   const stub = {
     close: async () => {},
@@ -187,7 +187,7 @@ test('broker with no lastSuccess → skipped (never submitted)', async () => {
   assert.equal(result.unverifiable.length, 0);
 });
 
-// ── Test 6: multi-person — each person verified independently ─────────────────
+// ── Test 6: multi-person - each person verified independently ─────────────────
 test('multi-person: each person is verified independently for the same broker', async () => {
   const broker  = searchBroker('MultiPerson');
   const alice   = { firstName: 'Alice', lastName: 'Smith' };
@@ -278,7 +278,7 @@ test('verifyHistory accumulates across multiple calls', async () => {
 test('verifiedDeletedAt older than lastSuccess → re-checks (new submit since last verify)', async () => {
   const broker  = searchBroker('StaleVerifyBroker');
   const person  = { firstName: 'Jane', lastName: 'Doe' };
-  // verifiedDeletedAt set 20d ago, lastSuccess set 8d ago (more recent — re-check needed)
+  // verifiedDeletedAt set 20d ago, lastSuccess set 8d ago (more recent - re-check needed)
   const state   = makeState('StaleVerifyBroker', 8, {
     verifiedDeletedAt: daysAgo(20),
   });
@@ -329,7 +329,7 @@ test('findListingUrl throws → unverifiable (not a false positive)', async () =
   assert.equal(result.verified_clear.length, 0);
 });
 
-// ── Test 12: H2 regression — state mutation is observable after runVerify ────
+// ── Test 12: H2 regression - state mutation is observable after runVerify ────
 // watcher.js calls saveState() after runVerify returns. This test proves the
 // mutation is in place on the state object, ready to persist.
 test('H2: verified_clear outcome writes verifiedDeletedAt on the state object', async () => {

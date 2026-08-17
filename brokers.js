@@ -1,24 +1,47 @@
 /**
- * brokers.js — data broker opt-out definitions
+ * brokers.js - data broker opt-out definitions
  *
  * Each entry describes one broker and HOW to automate its opt-out.
  *
  * method:
- *   'search-form'  — search for the person, extract listing URL, submit opt-out
- *   'direct-form'  — go straight to the opt-out URL and fill the form
- *   'email'        — send a removal-request email
- *   'manual'       — too complex to automate; added to the printed manual list
+ *   'search-form'  - search for the person, extract listing URL, submit opt-out
+ *   'direct-form'  - go straight to the opt-out URL and fill the form
+ *   'email'        - send a removal-request email
+ *   'manual'       - too complex to automate; added to the printed manual list
  *
- * captchaLikely    — true = pre-attempt CapSolver before submit
- * priority         — 1 = highest (most commonly searched / highest risk)
- * timeoutMs        — optional per-broker navigation timeout in ms (default: 15000)
+ * captchaLikely    - true = pre-attempt CapSolver before submit
+ * priority         - 1 = highest (most commonly searched / highest risk)
+ * timeoutMs        - optional per-broker navigation timeout in ms (default: 15000)
  *
- * No personal info lives here — all values come from config.json at runtime.
+ * No personal info lives here - all values come from config.json at runtime.
  */
+
+const _fs = require('fs');
 
 let _cachedConfig = null;
 function _getConfig() {
   if (_cachedConfig) return _cachedConfig;
+
+  // Go through lib/config.js loadConfig() so an encrypted config works. A bare
+  // require('./config.json') returns nothing once --encrypt-config has moved the
+  // PII into config.json.enc, which used to blank every value interpolated below
+  // and silently disable the whole browser opt-out path.
+  //
+  // loadConfig() calls process.exit(1) when no config exists at all, so only
+  // call it once a config file is actually present: requiring this module must
+  // stay safe on a fresh clone (setup, --list, the test suite).
+  try {
+    const { loadConfig, CONFIG_PATH, CONFIG_ENC_PATH } = require('./lib/config');
+    if (_fs.existsSync(CONFIG_ENC_PATH) || _fs.existsSync(CONFIG_PATH)) {
+      _cachedConfig = loadConfig();
+      return _cachedConfig;
+    }
+  } catch (_) {
+    // Missing lib/, unreadable envelope, or no passphrase. watcher.js reports
+    // the real error on its own loadConfig() call; fall through so requiring
+    // broker metadata never throws.
+  }
+
   try {
     // Honour the same AIDR_CONFIG override as lib/config.js — in a container
     // config.json lives on the mounted data dir, not next to this file.
@@ -33,14 +56,50 @@ const config = new Proxy({}, {
   get(_, prop) { return _getConfig()[prop]; },
 });
 
-const { firstName: F, lastName: L, fullName: N, state: ST, city: C, email: E, zip: Z } = new Proxy({}, {
-  get(_, prop) { return (_getConfig().person || {})[prop]; },
-});
-const enc = s => encodeURIComponent(s);
+/**
+ * The person whose values the default export is built from.
+ *
+ * `config.person` is the historical single-person key. `config.persons` is the
+ * multi-person format that lib/config.js getPersonsFromConfig() prefers; a
+ * config using only `persons` has no `config.person`, so without this fallback
+ * every interpolated value below became `undefined` - search URLs read
+ * "?q=undefined" and every formFields value was undefined.
+ */
+function _primaryPerson() {
+  const cfg = _getConfig();
+  if (cfg.person) return cfg.person;
+  if (Array.isArray(cfg.persons) && cfg.persons.length > 0) return cfg.persons[0];
+  return {};
+}
 
-module.exports = [
+// Never interpolate the literal string "undefined" into a URL or a form value.
+// A missing field becomes empty, which fails a lookup honestly (notFound)
+// instead of searching brokers for a person named "undefined".
+const enc = s => encodeURIComponent(s == null ? '' : s);
 
-  // ═══ Priority 1 — California DELETE Act portal (covers all ~500 CA-registered brokers) ═══
+/**
+ * Build the broker list for one person.
+ *
+ * These values must be resolved per person, not once at module load: watcher.js
+ * loops `for (const person of persons)` and each iteration needs that person's
+ * own name, city, state, zip and email in the search URLs and form fields.
+ * Baking them once meant person B's run submitted person A's PII to the broker.
+ *
+ * @param {object} [person]  defaults to _primaryPerson()
+ * @returns {object[]} a fresh array of fresh broker objects
+ */
+function buildBrokers(person) {
+  const p = person || _primaryPerson();
+  // Coerce missing fields to '' up front. Not every interpolation site below
+  // goes through enc(), so this is what guarantees no template ever renders the
+  // literal string "undefined" into a broker URL or form value.
+  const s = (v) => (v == null ? '' : String(v));
+  const F = s(p.firstName), L = s(p.lastName), N = s(p.fullName);
+  const ST = s(p.state), C = s(p.city), E = s(p.email), Z = s(p.zip);
+
+  return [
+
+  // ═══ Priority 1 - California DELETE Act portal (covers all ~500 CA-registered brokers) ═══
 
   // CA DROP (Delete Request and Opt-out Platform) is not yet live as of late 2025.
   // SB 362 broker-side compliance deadline is August 1, 2026.
@@ -56,7 +115,7 @@ module.exports = [
     notes: 'CA DROP (Delete Request and Opt-out Platform) under SB 362 is not yet live. The broker-side compliance deadline is August 1, 2026. CPPA has missed several preceding milestones; ongoing litigation (Data Brokers Association v. Bonta) may further delay. Official registry: https://cppa.ca.gov/data_broker_registry/',
   },
 
-  // ═══ Priority 1 — High-traffic people-search sites ═══════════════════════
+  // ═══ Priority 1 - High-traffic people-search sites ═══════════════════════
 
   {
     name: 'Spokeo',
@@ -210,7 +269,7 @@ module.exports = [
   {
     name: 'CheckPeople',
     method: 'direct-form',
-    // Their /opt-out page redirects — use the search-based removal flow instead
+    // Their /opt-out page redirects - use the search-based removal flow instead
     optOutUrl: `https://checkpeople.com/opt-out?firstName=${enc(F)}&lastName=${enc(L)}&state=${ST}`,
     formFields: { 'input[name*="first" i]': F, 'input[name*="last" i]': L, 'input[type="email"]': E, 'select[name*="state" i]': ST },
     submitSelector: 'button[type="submit"]',
@@ -218,7 +277,7 @@ module.exports = [
     priority: 2,
   },
 
-  // ═══ Priority 2 — Additional people-search sites ══════════════════════════
+  // ═══ Priority 2 - Additional people-search sites ══════════════════════════
 
   {
     name: 'ThatsThem',
@@ -228,7 +287,7 @@ module.exports = [
     submitSelector: 'button[type="submit"]',
     captchaLikely: false,
     priority: 2,
-    // No SSN/DOB gate — safe to submit arbitrary name/email for noise mode
+    // No SSN/DOB gate - safe to submit arbitrary name/email for noise mode
     acceptsBogus: true,
   },
 
@@ -272,7 +331,7 @@ module.exports = [
     submitSelector: 'button[type="submit"]',
     captchaLikely: false,
     priority: 2,
-    // No SSN/DOB gate — safe to submit arbitrary name/email for noise mode
+    // No SSN/DOB gate - safe to submit arbitrary name/email for noise mode
     acceptsBogus: true,
   },
 
@@ -284,7 +343,7 @@ module.exports = [
     submitSelector: 'button[type="submit"]',
     captchaLikely: false,
     priority: 2,
-    // No SSN/DOB gate — safe to submit arbitrary name/email for noise mode
+    // No SSN/DOB gate - safe to submit arbitrary name/email for noise mode
     acceptsBogus: true,
   },
 
@@ -296,7 +355,7 @@ module.exports = [
     submitSelector: 'button[type="submit"]',
     captchaLikely: false,
     priority: 2,
-    // No SSN/DOB gate — safe to submit arbitrary name/email for noise mode
+    // No SSN/DOB gate - safe to submit arbitrary name/email for noise mode
     acceptsBogus: true,
   },
 
@@ -340,8 +399,8 @@ module.exports = [
     priority: 2,
   },
 
-  // ═══ Priority 1 — Major upstream aggregators ══════════════════════════════
-  // These feed many smaller sites — highest leverage opt-outs
+  // ═══ Priority 1 - Major upstream aggregators ══════════════════════════════
+  // These feed many smaller sites - highest leverage opt-outs
 
   {
     name: 'Acxiom',
@@ -505,7 +564,7 @@ module.exports = [
   // ═══ Manual-only (requires human interaction) ═════════════════════════════
 
   {
-    name: 'Google — Results About You',
+    name: 'Google - Results About You',
     method: 'manual',
     optOutUrl: 'https://myaccount.google.com/data-and-privacy',
     notes: 'Use "Results about you" to flag address/phone in search results.',
@@ -513,7 +572,7 @@ module.exports = [
   },
 
   {
-    name: 'Google — Outdated Content',
+    name: 'Google - Outdated Content',
     method: 'manual',
     optOutUrl: 'https://search.google.com/search-console/remove-outdated-content',
     notes: 'Submit if any cached pages show your personal info.',
@@ -528,4 +587,13 @@ module.exports = [
     priority: 1,
   },
 
-];
+  ];
+}
+
+// Default export stays an array so every existing `require('./brokers')` call
+// site keeps working unchanged. `.forPerson(person)` is the per-person build
+// used by watcher.js inside its persons loop.
+const brokers = buildBrokers();
+brokers.forPerson = buildBrokers;
+
+module.exports = brokers;

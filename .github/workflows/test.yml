@@ -5,6 +5,9 @@ on:
     branches: [main]
   pull_request:
 
+permissions:
+  contents: read
+
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -46,3 +49,82 @@ jobs:
       - name: Run dashboard tests
         working-directory: dashboard
         run: node --test
+
+  # Behavioural counterpart to test/docker-build-contract.test.js.
+  #
+  # This job exists because two shipped P1s were invisible to a green test suite:
+  # `docker build` aborted on a uid collision with the base image, and the
+  # Playwright client version did not match the browser build in the image. Both
+  # are only detectable by building the thing and launching a browser. The old
+  # docker test asserted the Dockerfile *contained strings* - text-shaped test,
+  # text-shaped confidence.
+  #
+  # Docker is the only realistic deployment path for Linux and NAS users
+  # (issue #8), so it gets the same gate as the unit tests.
+  docker:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build the image
+        run: docker build -t aidr-ci .
+
+      - name: Chromium must actually launch inside the image
+        run: docker run --rm --init aidr-ci node scripts/ci/docker-smoke.js
+
+      - name: Default 64MB /dev/shm must not be a hard requirement
+        # No --shm-size on purpose: a plain `docker run` gets 64MB of /dev/shm,
+        # which is why the code passes --disable-dev-shm-usage.
+        run: docker run --rm --init aidr-ci node scripts/ci/docker-shm-check.js
+
+      - name: State must persist through a single-file bind mount
+        # The documented recipe mounts state.json as a file. rename() onto a bind
+        # mount returns EBUSY, which silently discarded every state write.
+        run: |
+          echo '{"optOuts":{}}' > "$RUNNER_TEMP/state.json"
+          docker run --rm --init \
+            -e AIDR_STATE_PATH=/app/state.json \
+            -v "$RUNNER_TEMP/state.json:/app/state.json" \
+            aidr-ci node scripts/ci/docker-state-check.js
+          grep -q CiProbe "$RUNNER_TEMP/state.json" || { echo "host file not updated"; exit 1; }
+
+      - name: Image must not contain PII or secrets
+        # COPY . . runs after npm ci, so a .dockerignore gap bakes the
+        # maintainer's own config into a layer that travels with the image.
+        run: |
+          for f in config.json config.json.enc state.json state.json.bak .env .claude; do
+            if docker run --rm --entrypoint sh aidr-ci -c "test -e /app/$f"; then
+              echo "SECURITY: /app/$f is baked into the image"
+              exit 1
+            fi
+          done
+          # A bare `node_modules` in .dockerignore matches only the root, so
+          # dashboard/node_modules used to ship in every layer.
+          if docker run --rm --entrypoint sh aidr-ci -c "test -d /app/dashboard/node_modules"; then
+            echo "BLOAT: /app/dashboard/node_modules is baked into the image"
+            exit 1
+          fi
+          echo "no PII in image"
+
+  # Zero-secret gate for the cross-model review policy. It cannot call a model: a
+  # public repo gives fork PRs no access to secrets, and pull_request_target would
+  # mean checking out untrusted head code with secrets available. See
+  # docs/CROSS_MODEL_REVIEW.md. So this only checks the policy was followed.
+  #
+  # Both SHAs are passed through env and quoted, never interpolated into the
+  # shell, per GitHub's workflow-injection guidance.
+  cross-model-gate:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check for a cross-model review trailer on tier-1 changes
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: bash scripts/cross-model-gate.sh "$BASE_SHA" "$HEAD_SHA"

@@ -267,7 +267,7 @@ test('dispatchNotify: on windows with webhook only calls fetch, no osascript or 
   assert.equal(exec.calls.filter(c => c.startsWith('notify-send')).length, 0);
 });
 
-test('dispatchNotify: no webhook and linux with no notify-send available — no crash', async () => {
+test('dispatchNotify: no webhook and linux with no notify-send available - no crash', async () => {
   // After Fix 7, dispatchNotify calls desktopNotify on linux (uses spawnSync directly).
   // spawnSync throwing should be swallowed.
   const orig = childProcess.spawnSync;

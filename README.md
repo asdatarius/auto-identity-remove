@@ -51,17 +51,18 @@ cd auto-identity-remove
 bash install.sh
 
 # 3. Run interactive setup (creates config.json and schedules the monthly job)
-./node_modules/.bin/aidr setup
+node bin/aidr.js setup
 
 # 4. Preview what it will do - submits nothing
-./node_modules/.bin/aidr preview
+node bin/aidr.js preview
 
 # 5. Run for real anytime
-./node_modules/.bin/aidr run
+node bin/aidr.js run
 ```
 
-> Tip: run `npm link` (or install globally) so you can type `aidr` directly
-> instead of `./node_modules/.bin/aidr`.
+> Tip: run `npm link` (or `npm i -g .`) so you can type `aidr` directly instead
+> of `node bin/aidr.js`. There is no `./node_modules/.bin/aidr` - npm only
+> creates `.bin` shims for *dependencies*, never for the package's own `bin`.
 
 ### The `aidr` command
 
@@ -136,29 +137,63 @@ Some opt-out forms have reCAPTCHA. Without CapSolver, those sites go to your man
 
 ## Running with Docker
 
-The included `Dockerfile` uses the official Playwright image, so Chromium and
-all system dependencies are pre-installed. No Mac required.
+The `Dockerfile` uses the official Playwright image, so Chromium and all system
+dependencies are pre-installed. No Mac required. Builds for `linux/amd64` and
+`linux/arm64`; the amd64 image is about 940 MB.
 
 ```bash
 # Build the image (once)
 docker build -t auto-identity-remove .
 
-# Dry-run (no opt-out forms submitted, no network calls)
-docker run --rm \
-  -v $(pwd)/config.json:/app/config.json \
-  -v $(pwd)/state.json:/app/state.json \
+# Dry-run - navigates and checks reachability, submits nothing
+docker run --rm --init \
+  -v "$(pwd)/config.json:/app/config.json" \
+  -v "$(pwd)/state.json:/app/state.json" \
+  -v "$(pwd)/logs:/app/logs" \
+  -e TZ="$(date +%Z)" \
   auto-identity-remove node watcher.js --dry-run
 
 # Full run
-docker run --rm \
-  -v $(pwd)/config.json:/app/config.json \
-  -v $(pwd)/state.json:/app/state.json \
+docker run --rm --init \
+  -v "$(pwd)/config.json:/app/config.json" \
+  -v "$(pwd)/state.json:/app/state.json" \
+  -v "$(pwd)/logs:/app/logs" \
+  -e TZ="$(date +%Z)" \
   auto-identity-remove
 ```
 
-**Persistent state:** mount `state.json` so completed opt-outs are remembered
-between container runs. If the file does not exist yet, create an empty one
-first: `echo '{}' > state.json`.
+Or with compose: `docker compose run --rm watcher node watcher.js --dry-run`.
+
+**Create `state.json` before the first run** - `touch state.json` is enough. If
+the path does not exist, Docker creates a *directory* there and the run fails on
+a confusing `EISDIR`.
+
+**`--init` matters.** Without it node is PID 1, `docker stop` cannot reap the
+Chromium children, and the state lock is left behind, wedging the next run.
+
+**`TZ` matters.** Containers are UTC. Without it a "1st of the month, 9am"
+schedule and every report timestamp land in the wrong hour.
+
+**Prefer mounting a directory over individual files.** `rename()` onto a Docker
+single-file bind mount fails with `EBUSY`, which is how every state write in
+Docker used to be silently discarded. There is now a fallback that keeps state
+working with file mounts, but it gives up crash-atomicity. To keep the
+guarantee, mount a directory and point `AIDR_STATE_PATH` inside it:
+
+```bash
+docker run --rm --init \
+  -v "$(pwd):/app/data" \
+  -e AIDR_STATE_PATH=/app/data/state.json \
+  auto-identity-remove
+```
+
+**Low-RAM hosts** (NAS, Raspberry Pi, small VPS): add `-e AIDR_LOW_MEMORY=1`. A
+full 40-broker run peaks at about 250 MB either way; the flag trades some render
+fidelity for less background work on slow cores.
+
+> **Synology / NAS users:** see [docs/SYNOLOGY.md](docs/SYNOLOGY.md) for a full
+> DSM Container Manager walkthrough, measured memory numbers, DSM Task Scheduler
+> setup, and the three defects that used to make the container unusable.
 
 ### Webhook notifications (any OS)
 
@@ -231,8 +266,12 @@ This tool covers 500+ data brokers in two tiers:
 
 | Tier | Count | Confidence |
 |---|---|---|
-| **Explicit brokers** ([STATUS.md](STATUS.md)) | 42 | Hand-mapped with specific selectors. `verified` entries have been tested live; `untested` ones may have drifted since they were added. |
+| **Explicit brokers** ([STATUS.md](STATUS.md)) | 44 | Hand-mapped with specific selectors. **None are currently marked `verified`** - the selectors compile and were correct when written, but none has been re-tested against the live site recently, so any of them may have drifted. |
 | **Generic runner** | ~490 | Best-effort heuristic - tries 4 strategies (Do Not Sell click, OneTrust/TrustArc, generic form, DSAR link). Many succeed; some fail silently. |
+
+Be skeptical of the counts this tool prints. Broker sites change their DOM
+constantly and a selector that no longer matches fails quietly. That is the
+central limitation of the whole approach, not a bug that is about to be fixed.
 
 The `✅ Submitted` count means the form was accepted by the broker. It does **not** prove deletion. To check:
 
@@ -525,6 +564,30 @@ Using both is the strongest approach: a paid service for the bulk of brokers + t
 
 ---
 
+## Security, and how this code is reviewed
+
+`config.json` holds your legal name, home address, phone, date of birth and API
+keys. If you find a way for any of that to escape - into a log, a report, the
+wrong form field, another local user, or a site chosen by a remote registry -
+please report it privately rather than in an issue. See
+[SECURITY.md](SECURITY.md).
+
+Most of this codebase was written by an AI model, and the review loop originally
+used the same model family, which [issue #8][i8] correctly called an echo
+chamber. Files that touch PII, crypto, subprocesses or untrusted network input
+now require a review from a *different* model family before merge, and CI builds
+the Docker image and launches a real browser rather than grepping the Dockerfile.
+The policy, the tooling, and an honest account of what that does and does not buy
+you are in [docs/CROSS_MODEL_REVIEW.md](docs/CROSS_MODEL_REVIEW.md).
+
+```bash
+npm run review:cross-model        # review the current diff with a non-Anthropic model
+```
+
+[i8]: https://github.com/stephenlthorn/auto-identity-remove/issues/8
+
+---
+
 ## License
 
-MIT
+MIT - see [LICENSE](LICENSE).

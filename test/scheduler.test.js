@@ -7,7 +7,7 @@
  * execSync via Module._resolveFilename override on child_process, and by
  * using pickScheduler(platform) to select the branch without touching the
  * real OS.  No files are written to ~/Library, ~/.config, or any system
- * directory — all fs calls are intercepted via a temp directory.
+ * directory - all fs calls are intercepted via a temp directory.
  *
  * Tests run with Node's built-in test runner (`node --test`).
  */
@@ -140,7 +140,7 @@ test('macOS installer writes a plist file and returns method=launchd', () => {
   // Instead: call the installer directly with our temp paths
   // We need to patch the PLIST_PATH used inside installLaunchd.
   // Since PLIST_PATH is module-level, we test via the exported function
-  // indirectly — we just verify the plist XML ends up in the right place.
+  // indirectly - we just verify the plist XML ends up in the right place.
 
   // Use the platform-injectable variant so the test passes on Linux CI runners
   const { installScheduleForPlatform } = require('../lib/scheduler');
@@ -172,7 +172,7 @@ test('Linux systemd branch writes unit files and calls systemctl', () => {
   // Simulate: `which systemctl` succeeds, then systemctl daemon-reload + enable succeeds
   childProcess.execSync = (cmd, opts) => {
     executed.push(cmd);
-    // Don't throw — simulate success
+    // Don't throw - simulate success
     return '';
   };
 

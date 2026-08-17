@@ -415,7 +415,7 @@ let opts = { dryRun: false, person: null, capsolver: null, noCapsolver: false, s
   (c) Add the allowlist guard at the very top of the skip block, immediately after `const skip = shouldSkip(key);` handling and before the US-only gate. Change the block (lines 50-62) from:
 
 ```js
-  // Centralized skip logic — handles both regular re-check window AND
+  // Centralized skip logic - handles both regular re-check window AND
   // WP4 pending-confirmation 14-day retry window.
   const skip = shouldSkip(key);
   if (skip) {
@@ -425,7 +425,7 @@ let opts = { dryRun: false, person: null, capsolver: null, noCapsolver: false, s
 
   // Skip US-only brokers for non-US users (these sites hold no non-US records)
   if (broker.usOnly && (person?.country || 'US') !== 'US') {
-    logResult(broker.name, 'skipped', 'US-only broker — skipped for non-US user');
+    logResult(broker.name, 'skipped', 'US-only broker - skipped for non-US user');
     return;
   }
 ```
@@ -440,7 +440,7 @@ let opts = { dryRun: false, person: null, capsolver: null, noCapsolver: false, s
     return;
   }
 
-  // Centralized skip logic — handles both regular re-check window AND
+  // Centralized skip logic - handles both regular re-check window AND
   // WP4 pending-confirmation 14-day retry window.
   const skip = shouldSkip(key);
   if (skip) {
@@ -450,7 +450,7 @@ let opts = { dryRun: false, person: null, capsolver: null, noCapsolver: false, s
 
   // Skip US-only brokers for non-US users (these sites hold no non-US records)
   if (broker.usOnly && (person?.country || 'US') !== 'US') {
-    logResult(broker.name, 'skipped', 'US-only broker — skipped for non-US user');
+    logResult(broker.name, 'skipped', 'US-only broker - skipped for non-US user');
     return;
   }
 ```

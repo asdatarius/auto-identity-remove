@@ -40,22 +40,30 @@ echo ""
 echo "Installing the Chromium browser (npx playwright install chromium)..."
 npx playwright install chromium
 
-# 5. Next steps.
+# 5. Install the dashboard's own dependencies.
+#    express lives in dashboard/package.json, not the root manifest, so without
+#    this step `aidr dashboard` fails with MODULE_NOT_FOUND right after a
+#    documented install.
+echo ""
+echo "Installing dashboard dependencies..."
+(cd dashboard && npm ci) || echo "  (dashboard deps failed - 'aidr dashboard' will not start until you run: cd dashboard && npm ci)"
+
+# 6. Next steps.
 echo ""
 echo "--------------------------------"
 echo "Install complete."
 echo ""
 echo "Next steps:"
 echo "  1. Run setup (creates config.json, schedules the monthly job):"
-echo "       ./node_modules/.bin/aidr setup"
+echo "       node bin/aidr.js setup"
 echo "  2. Preview what it will do (submits nothing):"
-echo "       ./node_modules/.bin/aidr preview"
+echo "       node bin/aidr.js preview"
 echo "  3. Run for real when ready:"
-echo "       ./node_modules/.bin/aidr run"
+echo "       node bin/aidr.js run"
 echo ""
 echo "  Open the local web dashboard:"
-echo "       ./node_modules/.bin/aidr dashboard"
+echo "       node bin/aidr.js dashboard"
 echo ""
-echo "Tip: run 'npm link' (or install globally) to use 'aidr' without the path prefix."
+echo "Tip: run 'npm link' (or 'npm i -g .') to use 'aidr' instead of 'node bin/aidr.js'."
 echo "--------------------------------"
 echo ""

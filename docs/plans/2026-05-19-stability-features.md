@@ -1,4 +1,4 @@
-# 2026-05-19 — Stability + Features plan (10 work packages)
+# 2026-05-19 - Stability + Features plan (10 work packages)
 
 Plan for 10 stability/feature improvements identified after the HN follow-up
 work shipped. Each WP is independently buildable by a Sonnet subagent in an
@@ -106,11 +106,11 @@ against Node 18, 20, 22.
 re-run a single broker.
 
 **Approach:** Four new CLI flags in `watcher.js`:
-- `--only <name1,name2>` — only run these brokers.
-- `--skip <name1,name2>` — skip these.
-- `--retry-failed` — read last log, only re-run brokers that had `error`,
+- `--only <name1,name2>` - only run these brokers.
+- `--skip <name1,name2>` - skip these.
+- `--retry-failed` - read last log, only re-run brokers that had `error`,
   `captcha_failed`, or `pending_confirm`.
-- `--list` — print all brokers with status from state.json, then exit.
+- `--list` - print all brokers with status from state.json, then exit.
 
 Filter is applied to the explicit + generic broker list before processing.
 
@@ -151,7 +151,7 @@ Output: green checkmarks for pass, red X with remediation hint for fail.
 ## WP-S7: Selector drift detection
 
 **Problem:** When a broker silently changes their DOM, the selector misses
-and we never know — we just log `error` and move on.
+and we never know - we just log `error` and move on.
 
 **Approach:** Track per-broker rolling success rate in `state.json`:
 ```json
@@ -162,7 +162,7 @@ confidence to `drifted` in a new `lib/drift.js` report.
 
 End-of-run summary includes:
 ```
-🚨 Drift detected — these brokers have failed 3+ times:
+🚨 Drift detected - these brokers have failed 3+ times:
    • Spokeo (last success: 2026-02-14)
    • MyLife (last success: 2026-03-02)
 ```
@@ -182,7 +182,7 @@ End-of-run summary includes:
 wording. Also, California users should know about the DROP platform.
 
 **Approach:**
-1. In `lib/email.js`, detect `person.country` — use GDPR template when EU
+1. In `lib/email.js`, detect `person.country` - use GDPR template when EU
    countries (DE, FR, ES, IT, NL, etc.) or GB.
 2. GDPR template cites Article 17, mentions data portability, 30-day SLA.
 3. CCPA template (existing) stays default for US/other.
@@ -202,7 +202,7 @@ wording. Also, California users should know about the DROP platform.
 
 ## WP-S9: Result diffing + markdown audit report
 
-**Problem:** No way to see "what changed since last run" — did new exposures
+**Problem:** No way to see "what changed since last run" - did new exposures
 appear? Did anything regress? Also, no formal proof-of-request artifact.
 
 **Approach:**

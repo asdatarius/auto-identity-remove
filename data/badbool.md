@@ -130,7 +130,7 @@ Look for [your information](https://www.cyberbackgroundchecks.com/) and [opt out
 Find your information and [opt out](https://www.peoplesearchnow.com/opt-out).
 
 ### 🎫 PimEyes
-PimEyes is an online face search engine that uses face recognition to perform a reverse image search, finding pictures of your face (or others like it) throughout the Internet. If you want to see if your photographs are in PimEyes’ database, consider [uploading a photo](https://pimeyes.com/). (I used a very public photo that I know is already online, but you can also take a photo with your camera—which PimEyes claims it does not store.)  To opt out, you’ll need to [upload an image of your face](https://pimeyes.com/en/opt-out-request-form), and also attach a photo ID with all sensitive data (other than your name and photograph) blurred. The easiest way to do this, in my opinion, is through Signal, the encrypted messaging app, which has a blur feature described [in its blog](https://signal.org/blog/blur-tools/). You can also use tools such as Photoshop or even make a copy of your ID and use a Sharpie. Finally, you’ll need to provide your email address.
+PimEyes is an online face search engine that uses face recognition to perform a reverse image search, finding pictures of your face (or others like it) throughout the Internet. If you want to see if your photographs are in PimEyes’ database, consider [uploading a photo](https://pimeyes.com/). (I used a very public photo that I know is already online, but you can also take a photo with your camera-which PimEyes claims it does not store.)  To opt out, you’ll need to [upload an image of your face](https://pimeyes.com/en/opt-out-request-form), and also attach a photo ID with all sensitive data (other than your name and photograph) blurred. The easiest way to do this, in my opinion, is through Signal, the encrypted messaging app, which has a blur feature described [in its blog](https://signal.org/blog/blur-tools/). You can also use tools such as Photoshop or even make a copy of your ID and use a Sharpie. Finally, you’ll need to provide your email address.
 
 ### PrivateEye
 [Look for your information](https://www.privateeye.com/) and [initiate the opt-out](https://www.privateeye.com/removal), if needed. You will receive a link for a record removal form that you’ll have to fill out. 
@@ -185,7 +185,7 @@ Find [your information](https://veripages.com/). To opt out, [enter the profile 
 Go to [VoterRecords.com](https://voterrecords.com/), find your information, scroll to the bottom of the page and click on the"record opt-out" link. This will lead to an opt-out form, which you’ll need to submit. You may receive a verification link you’ll need to click on to verify your opt-out request.
 
 ### ZoomInfo
-Check to see if your information is on ZoomInfo by [filling out this form](https://privacyrequest.zoominfo.com/remove/verify). Opt out if it has an email on record—they will email you a code. ZoomInfo appears to have moved towards focusing primarily on business rather than individuals.
+Check to see if your information is on ZoomInfo by [filling out this form](https://privacyrequest.zoominfo.com/remove/verify). Opt out if it has an email on record-they will email you a code. ZoomInfo appears to have moved towards focusing primarily on business rather than individuals.
 
 ## Special Circumstances
 

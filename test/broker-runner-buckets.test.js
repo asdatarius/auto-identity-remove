@@ -20,7 +20,7 @@ const originalLoad = Module._load.bind(Module);
 const logged = [];
 const recorded = { success: [], failure: [] };
 
-// Controllable classify return — default is 'unknown' (neither success nor failure)
+// Controllable classify return - default is 'unknown' (neither success nor failure)
 let classifyReturn = { outcome: 'unknown', snippet: '' };
 
 // Controllable page body for post-submit read

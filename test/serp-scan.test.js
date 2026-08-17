@@ -5,14 +5,14 @@
  * No live network. No real browser.
  *
  * Tested behaviours:
- *  1. parseSerp('ddg', html)    — extracts ranked URLs from DuckDuckGo HTML
- *  2. parseSerp('bing', html)   — extracts ranked URLs from Bing HTML
- *  3. parseSerp('google', html) — extracts ranked URLs from Google HTML
- *  4. hostnameOf(url)           — strips www prefix, handles edge cases
- *  5. matchBrokers(...)         — returns intersection of serp + broker hostnames
- *  6. buildQuery(person)        — builds the quoted search string
- *  7. hashPerson(...)           — returns stable 64-char hex (sha256)
- *  8. runSerpScan(...)          — orchestrates via injected page stub
+ *  1. parseSerp('ddg', html)    - extracts ranked URLs from DuckDuckGo HTML
+ *  2. parseSerp('bing', html)   - extracts ranked URLs from Bing HTML
+ *  3. parseSerp('google', html) - extracts ranked URLs from Google HTML
+ *  4. hostnameOf(url)           - strips www prefix, handles edge cases
+ *  5. matchBrokers(...)         - returns intersection of serp + broker hostnames
+ *  6. buildQuery(person)        - builds the quoted search string
+ *  7. hashPerson(...)           - returns stable 64-char hex (sha256)
+ *  8. runSerpScan(...)          - orchestrates via injected page stub
  */
 
 'use strict';

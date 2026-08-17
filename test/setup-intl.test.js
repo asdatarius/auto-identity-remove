@@ -2,8 +2,8 @@
  * test/setup-intl.test.js
  *
  * Unit tests for the pure helper functions exported from setup.js:
- *   regionPrompts(country)  — returns correct label strings per country
- *   formatPhone(phone, country) — US 10-digit → (xxx) xxx-xxxx; non-US → raw
+ *   regionPrompts(country)  - returns correct label strings per country
+ *   formatPhone(phone, country) - US 10-digit → (xxx) xxx-xxxx; non-US → raw
  *
  * No readline/stdin interaction is exercised here.
  */

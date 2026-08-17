@@ -5,7 +5,7 @@
  * status:'dead' in EVERY run they appear in (and appear at least once),
  * then merges them into data/dead-urls.json.
  *
- * Idempotent — running twice produces no change.
+ * Idempotent - running twice produces no change.
  * Exported `pruneDeadUrls(logsDir, deadUrlsPath)` is a pure function for
  * testability (takes explicit paths; no side-effects beyond writing the file).
  *
@@ -46,7 +46,7 @@ function pruneDeadUrls(logsDir, deadUrlsPath) {
       .filter(f => /^run-.*\.json$/.test(f))
       .map(f => path.join(logsDir, f));
   } catch (_) {
-    // logs dir missing — nothing to prune
+    // logs dir missing - nothing to prune
   }
 
   // ── 3. Aggregate: for each hostname, track {dead, total} across all runs ──

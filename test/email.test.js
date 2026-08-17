@@ -72,7 +72,7 @@ test('macOS + no smtp → logs manual (SMTP required on all platforms)', async (
   assert.ok(manualLog, `expected manual log for Pipl, got: ${JSON.stringify(logCalls)}`);
   assert.ok(manualLog.detail.includes('removal@pipl.com'), 'detail should include emailTo');
 
-  // Non-email broker filtered out — no log entries for it
+  // Non-email broker filtered out - no log entries for it
   assert.equal(logCalls.filter(l => l.broker === 'WhitePages').length, 0);
 });
 

@@ -2,10 +2,10 @@
  * test/filter.test.js
  *
  * Tests for lib/filter.js:
- *   - parseList(arg)            — splits comma-separated names, trims whitespace
- *   - applyFilter(brokers, opts)— returns filtered broker array
- *   - extractFailedBrokers(log) — returns Set of broker names from error buckets
- *   - loadLastLog(logsDir)      — reads newest run-*.json from logs/, returns parsed or null
+ *   - parseList(arg)            - splits comma-separated names, trims whitespace
+ *   - applyFilter(brokers, opts)- returns filtered broker array
+ *   - extractFailedBrokers(log) - returns Set of broker names from error buckets
+ *   - loadLastLog(logsDir)      - reads newest run-*.json from logs/, returns parsed or null
  */
 
 const { test, mock } = require('node:test');
@@ -32,7 +32,7 @@ test('parseList empty string returns empty array', () => {
   assert.deepEqual(parseList(''), []);
 });
 
-// ─── applyFilter — only ───────────────────────────────────────────────────────
+// ─── applyFilter - only ───────────────────────────────────────────────────────
 
 const ALL = [{ name: 'A' }, { name: 'B' }, { name: 'C' }];
 
@@ -53,7 +53,7 @@ test('applyFilter with only single broker returns one broker', () => {
   assert.equal(result[0].name, 'B');
 });
 
-// ─── applyFilter — skip ───────────────────────────────────────────────────────
+// ─── applyFilter - skip ───────────────────────────────────────────────────────
 
 test('applyFilter with skip removes named brokers, keeps the rest', () => {
   const result = applyFilter(ALL, { skip: 'B' });
@@ -72,7 +72,7 @@ test('applyFilter with skip missing broker leaves list unchanged', () => {
   assert.equal(result.length, 3);
 });
 
-// ─── applyFilter — retryFailedFromLog ─────────────────────────────────────────
+// ─── applyFilter - retryFailedFromLog ─────────────────────────────────────────
 
 test('applyFilter with retryFailedFromLog returns only matching brokers', () => {
   const failed = new Set(['B']);
@@ -93,7 +93,7 @@ test('applyFilter with retryFailedFromLog multiple names', () => {
   assert.deepEqual(result.map(b => b.name), ['A', 'C']);
 });
 
-// ─── applyFilter — no filter → returns all ────────────────────────────────────
+// ─── applyFilter - no filter → returns all ────────────────────────────────────
 
 test('applyFilter with no options returns all brokers', () => {
   const result = applyFilter(ALL, {});

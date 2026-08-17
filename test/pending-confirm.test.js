@@ -1,5 +1,5 @@
 /**
- * test/pending-confirm.test.js — WP4 state-layer tests
+ * test/pending-confirm.test.js - WP4 state-layer tests
  *
  * Covers:
  *   - recordPendingConfirmation stores { pendingConfirmation: true, lastAttempt }

@@ -1,5 +1,5 @@
 /**
- * test/confirm-detection.test.js — WP4
+ * test/confirm-detection.test.js - WP4
  *
  * Covers lib/confirm.js:
  *  - looksLikeConfirmationRequired(text): pure string check against the
@@ -7,7 +7,7 @@
  *  - detectConfirmationRequired(page): wraps the above against a Playwright-
  *    like page object (mocked via a stub with `evaluate`)
  *
- * False-positive resistance matters here — a real submission that gets
+ * False-positive resistance matters here - a real submission that gets
  * reclassified as pending forever is a worse failure than the original bug.
  */
 
@@ -17,7 +17,7 @@ const assert = require('node:assert/strict');
 const { looksLikeConfirmationRequired, detectConfirmationRequired, PATTERN } =
   require('../lib/confirm');
 
-// ── Positive cases — must match ──────────────────────────────────────────────
+// ── Positive cases - must match ──────────────────────────────────────────────
 
 const POSITIVE = [
   'Please check your email to confirm your request.',
@@ -27,7 +27,7 @@ const POSITIVE = [
   'Verify your email address to complete the removal.',
   'Please confirm your email by clicking the link below.',
   'A confirmation link has been sent.',
-  'CHECK YOUR EMAIL — UPPERCASE IS FINE',
+  'CHECK YOUR EMAIL - UPPERCASE IS FINE',
   'Click the link in the verification email we just sent you.',
 ];
 
@@ -37,7 +37,7 @@ for (const s of POSITIVE) {
   });
 }
 
-// ── Negative cases — must NOT match ───────────────────────────────────────────
+// ── Negative cases - must NOT match ───────────────────────────────────────────
 
 const NEGATIVE = [
   '',

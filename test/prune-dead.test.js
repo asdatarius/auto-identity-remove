@@ -81,7 +81,7 @@ test('does NOT add a host that appears in only one run as success', () => {
   assert.deepEqual(added, []);
 });
 
-test('is idempotent — running twice produces no change', () => {
+test('is idempotent - running twice produces no change', () => {
   writeLog('run-1.json', [
     { broker: 'gone.com', status: 'dead', detail: 'ENOTFOUND' },
   ]);

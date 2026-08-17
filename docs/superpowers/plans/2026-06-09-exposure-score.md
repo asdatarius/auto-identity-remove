@@ -998,7 +998,7 @@ Files:
         <section class="card exposure-card" id="exposureCard" aria-label="Exposure score">
           <div class="exposure-head">
             <div class="exposure-score">
-              <span class="exposure-num" id="exposureNum">—</span>
+              <span class="exposure-num" id="exposureNum">-</span>
               <span class="exposure-max">/ 100</span>
             </div>
             <div class="exposure-meta">
@@ -1049,7 +1049,7 @@ Files:
         try {
           const e = await api('/exposure');
           if (!e || e.error || typeof e.score !== 'number') {
-            $('#exposureNum').textContent = '—';
+            $('#exposureNum').textContent = '-';
             $('#exposureTrend').textContent = e && e.error ? String(e.error) : '';
             return;
           }
@@ -1075,7 +1075,7 @@ Files:
           ].join('');
           $('#exposureSpark').innerHTML = sparklineSvg(hist.map(h => h && h.score));
         } catch (_) {
-          $('#exposureNum').textContent = '—';
+          $('#exposureNum').textContent = '-';
         }
       }
 
@@ -1145,4 +1145,4 @@ Signature consistency with the real repo map:
 - `dashboard/server.js` reuses real helpers `readJsonSafe` (lines 158-161) and `loadBrokers` (lines 181-190) and the `STATE`/`ROOT` path constants (lines 46-49); the new `SERP_HISTORY`/`EXPOSURE_LIB` constants follow the existing `ROOT`-relative pattern. The new route is added under the existing auth + CSRF middleware so it requires auth like every route except `/api/health`.
 - `dashboard/public/app.js` reuses real globals `$`, `$$`, `api`, `esc` (lines 2-17); new container ids (`#exposureNum`, `#exposureTrend`, `#exposureBreakdown`, `#exposureSpark`) are added to `index.html` in Task 5.
 - Tests use `node:test` + `node:assert/strict`, factory-style temp paths via `crypto.randomBytes`, an injectable clock (`opts.now`), and a test path override (`setTestExposureHistoryPath`) for hermeticity - matching the DI conventions in `test/serp-scan.test.js` (`_skipWrite`, console silencing) and `dashboard/server.test.js` (`buildServer`/`request`/`basicAuth`). No real network, no real browser, no writes to the real `config.json`/`state.json` (the exposure tests touch only temp files; the dashboard tests reuse the existing `buildServer` harness that stashes and restores the real files).
-- No em dashes in authored prose (hyphens only; the `—` glyphs inside fenced code blocks are pre-existing UI strings from `index.html`/`app.js` being matched, not authored prose). No new npm dependencies (Node built-ins `fs`/`path`/`crypto` only); CommonJS throughout.
+- No em dashes in authored prose (hyphens only; the `-` glyphs inside fenced code blocks are pre-existing UI strings from `index.html`/`app.js` being matched, not authored prose). No new npm dependencies (Node built-ins `fs`/`path`/`crypto` only); CommonJS throughout.

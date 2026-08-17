@@ -1,7 +1,7 @@
 /**
  * test/drift.test.js
  *
- * Tests for lib/drift.js — selector drift detection.
+ * Tests for lib/drift.js - selector drift detection.
  * isDrifted(history) flags when last 3 entries are all non-success.
  * findDrifted(state) returns all drifted brokers with metadata.
  */

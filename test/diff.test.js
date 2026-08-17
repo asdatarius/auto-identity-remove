@@ -46,17 +46,17 @@ const currResults = {
 // ── diffResults tests ─────────────────────────────────────────────────────────
 
 describe('diffResults', () => {
-  it('detects new exposures — brokers previously succeeded but now in notFound', () => {
+  it('detects new exposures - brokers previously succeeded but now in notFound', () => {
     const diff = diffResults(prevResults, currResults);
     assert.deepEqual(diff.newExposures, ['Radaris']);
   });
 
-  it('detects newly removed — brokers now succeeded that were not previously succeeded', () => {
+  it('detects newly removed - brokers now succeeded that were not previously succeeded', () => {
     const diff = diffResults(prevResults, currResults);
     assert.deepEqual(diff.newlyRemoved, ['PeopleFinder']);
   });
 
-  it('detects regressions — brokers previously succeeded but now in errors', () => {
+  it('detects regressions - brokers previously succeeded but now in errors', () => {
     const diff = diffResults(prevResults, currResults);
     assert.deepEqual(diff.regressed, ['BeenVerified']);
   });

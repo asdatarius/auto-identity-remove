@@ -17,7 +17,7 @@
     <section class="card exposure-card" id="exposureCard" aria-label="Exposure score">
       <div class="exposure-head">
         <div class="exposure-score">
-          <span class="exposure-num" id="exposureNum">—</span>
+          <span class="exposure-num" id="exposureNum">-</span>
           <span class="exposure-max">/ 100</span>
         </div>
         <div class="exposure-meta">
@@ -138,9 +138,9 @@
       <h3>Automated schedule</h3>
       <p class="dim">Runs <code>node watcher.js</code> on a systemd timer inside this container.</p>
       <div class="sched-row">
-        <span>Status:</span> <span class="pill" id="schedEnabled">—</span>
-        <span>Next run:</span> <strong id="schedNext">—</strong>
-        <span>Cadence:</span> <strong id="schedCal">—</strong>
+        <span>Status:</span> <span class="pill" id="schedEnabled">-</span>
+        <span>Next run:</span> <strong id="schedNext">-</strong>
+        <span>Cadence:</span> <strong id="schedCal">-</strong>
       </div>
       <div class="sched-actions">
         <button class="btn btn-primary" id="schedEnable">Enable</button>
@@ -158,7 +158,7 @@
       <form id="pwForm" class="admin-form" autocomplete="off">
         <fieldset><legend>Change credentials</legend>
           <label>Current password <input id="curPw" type="password" autocomplete="current-password" /></label>
-          <label>New username <span class="dim">(optional — leave blank to keep)</span> <input id="newUser" placeholder="admin" autocomplete="username" /></label>
+          <label>New username <span class="dim">(optional - leave blank to keep)</span> <input id="newUser" placeholder="admin" autocomplete="username" /></label>
           <label>New password <input id="newPw" type="password" autocomplete="new-password" /></label>
           <label>Confirm new password <input id="newPw2" type="password" autocomplete="new-password" /></label>
         </fieldset>

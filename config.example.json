@@ -22,7 +22,7 @@
   },
 
   "capsolver": {
-    "_comment": "Sign up free at capsolver.com — pay-as-you-go, costs pennies/month for this use case",
+    "_comment": "Sign up free at capsolver.com - pay-as-you-go, costs pennies/month for this use case",
     "apiKey": "CAP-YOUR_KEY_HERE"
   },
 
@@ -32,7 +32,7 @@
   },
 
   "accounts": {
-    "_comment": "For sites that require a login. Leave password blank — setup.js will prompt you to create the account once, then store credentials here.",
+    "_comment": "For sites that require a login. Leave password blank - setup.js will prompt you to create the account once, then store credentials here.",
     "spokeo":       { "email": "", "password": "" },
     "beenverified": { "email": "", "password": "" },
     "mylife":       { "email": "", "password": "" }

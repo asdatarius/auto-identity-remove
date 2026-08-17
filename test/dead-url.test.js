@@ -4,7 +4,7 @@
  * Unit tests for the pure classification helpers exported from generic-runner.js
  * and for the dead-URL short-circuit logic (using injected sets / temp files).
  *
- * Does NOT require Playwright — classifyNavError and isDeadStatus are pure
+ * Does NOT require Playwright - classifyNavError and isDeadStatus are pure
  * functions; processGenericUrl tests are done via processGenericUrl's optional
  * injectedDeadSet parameter.
  */
