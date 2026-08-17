@@ -1,10 +1,10 @@
 /**
  * test/defunct.test.js
  *
- * Tests for lib/defunct.js — defunct broker detection.
- * isUnreachable(kind)  — returns true for network-level error kinds.
- * isDefunct(history)   — returns true when the last DEFUNCT_THRESHOLD entries are all unreachable.
- * findDefunct(state)   — scans state.optOuts and returns names of defunct brokers.
+ * Tests for lib/defunct.js - defunct broker detection.
+ * isUnreachable(kind)  - returns true for network-level error kinds.
+ * isDefunct(history)   - returns true when the last DEFUNCT_THRESHOLD entries are all unreachable.
+ * findDefunct(state)   - scans state.optOuts and returns names of defunct brokers.
  */
 
 const { test } = require('node:test');

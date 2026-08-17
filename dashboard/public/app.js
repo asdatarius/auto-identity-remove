@@ -118,7 +118,7 @@ const consoleEl = $('#console');
 let firstLine = true;
 function classify(line) {
   if (/^\$ /.test(line)) return 'line-cmd';
-  if (/^— |process exited/.test(line)) return 'line-end';
+  if (/^- |process exited/.test(line)) return 'line-end';
   if (/✅|success|✓/i.test(line)) return 'line-ok';
   if (/⚠️|warn|skip/i.test(line)) return 'line-warn';
   if (/❌|error|fail/i.test(line)) return 'line-err';
@@ -298,7 +298,7 @@ $('#savePw').addEventListener('click', async () => {
     body: JSON.stringify({ currentPassword: cur, newPassword: np, newUsername: nu || undefined }) });
   if (r.ok) {
     msg.className = 'pw-msg ok';
-    msg.innerHTML = `✅ Updated. Log in again as <b>${esc(r.user)}</b> with the new password — your browser will re-prompt on the next action.`;
+    msg.innerHTML = `✅ Updated. Log in again as <b>${esc(r.user)}</b> with the new password - your browser will re-prompt on the next action.`;
     $('#curPw').value = $('#newPw').value = $('#newPw2').value = $('#newUser').value = '';
   } else { msg.className = 'pw-msg err'; msg.textContent = '❌ ' + (r.error || 'change failed'); }
 });
@@ -309,8 +309,8 @@ async function loadSchedule() {
   const pill = $('#schedEnabled');
   pill.textContent = s.enabled || 'unknown';
   pill.className = 'pill ' + (s.enabled === 'enabled' ? 'good' : 'warn');
-  $('#schedNext').textContent = s.next || '—';
-  $('#schedCal').textContent = s.oncalendar || '—';
+  $('#schedNext').textContent = s.next || '-';
+  $('#schedCal').textContent = s.oncalendar || '-';
 }
 const postSchedule = body => api('/schedule', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }).then(loadSchedule);
 $('#schedEnable').addEventListener('click', () => postSchedule({ action: 'enable' }));
@@ -323,8 +323,8 @@ function setPath(o, p, v) { const ks = p.split('.'); let c = o; ks.slice(0, -1).
 async function loadConfig() {
   const r = await api('/config');
   $('#configState').textContent = r.parseError
-    ? '⚠️ config.json exists but could not be parsed — fix or re-save to overwrite.'
-    : (r.exists ? 'Editing live config.json (secrets masked).' : 'No config.json yet — fields prefilled from the example. Save to create it.');
+    ? '⚠️ config.json exists but could not be parsed - fix or re-save to overwrite.'
+    : (r.exists ? 'Editing live config.json (secrets masked).' : 'No config.json yet - fields prefilled from the example. Save to create it.');
   const c = r.config || {};
   $$('#configForm input').forEach(inp => {
     let v = getPath(c, inp.name);
@@ -371,12 +371,12 @@ async function loadLogs() {
   const files = await api('/logs');
   $('#logList').innerHTML = (Array.isArray(files) && files.length) ? files.map(f =>
     `<li data-name="${esc(f.name)}">${esc(f.name)}<div class="meta">${(f.size / 1024).toFixed(1)} KB · ${esc(fmtDate(f.mtime))}</div></li>`
-  ).join('') : '<li class="dim">No logs yet — a dated report is written when a real run <b>completes</b>. Watch live progress in the run console above.</li>';
+  ).join('') : '<li class="dim">No logs yet - a dated report is written when a real run <b>completes</b>. Watch live progress in the run console above.</li>';
   $$('#logList li[data-name]').forEach(li => li.addEventListener('click', async () => {
     $$('#logList li').forEach(x => x.classList.remove('active')); li.classList.add('active');
     const txt = await fetch('/api/logs/' + encodeURIComponent(li.dataset.name)).then(r => r.text());
     let out = txt; try { out = JSON.stringify(JSON.parse(txt), null, 2); } catch (_) {}
-    $('#logView').textContent = out; // textContent — safe, never innerHTML for log bodies
+    $('#logView').textContent = out; // textContent - safe, never innerHTML for log bodies
   }));
 }
 
@@ -406,7 +406,7 @@ async function loadExposure() {
   try {
     const e = await api('/exposure');
     if (!e || e.error || typeof e.score !== 'number') {
-      $('#exposureNum').textContent = '—';
+      $('#exposureNum').textContent = '-';
       $('#exposureTrend').textContent = e && e.error ? String(e.error) : '';
       return;
     }
@@ -439,7 +439,7 @@ async function loadExposure() {
     ].join('');
     $('#exposureSpark').innerHTML = sparklineSvg(hist.map(h => h && h.score));
   } catch (_) {
-    $('#exposureNum').textContent = '—';
+    $('#exposureNum').textContent = '-';
   }
 }
 

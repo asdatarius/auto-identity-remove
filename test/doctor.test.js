@@ -2,7 +2,7 @@
 /**
  * test/doctor.test.js
  *
- * Tests for lib/doctor.js — self-diagnose command.
+ * Tests for lib/doctor.js - self-diagnose command.
  * Network I/O is mocked; no real HTTP/TCP calls are made.
  */
 
@@ -174,7 +174,7 @@ describe('checkState', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// checkPlaywright — unit-level: we verify the check honours a mock
+// checkPlaywright - unit-level: we verify the check honours a mock
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('checkPlaywright', () => {
@@ -326,7 +326,7 @@ describe('checkWebhook', () => {
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
-// runDoctor — integration-level with mocked I/O
+// runDoctor - integration-level with mocked I/O
 // ─────────────────────────────────────────────────────────────────────────────
 
 describe('runDoctor', () => {

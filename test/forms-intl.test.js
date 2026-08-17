@@ -1,7 +1,7 @@
 /**
  * test/forms-intl.test.js
  *
- * Unit tests for applyRegionAliases() — pure map transform, no Playwright.
+ * Unit tests for applyRegionAliases() - pure map transform, no Playwright.
  *
  * Covers:
  *   - US person: map returned unchanged (same reference)
@@ -28,7 +28,7 @@ const SAMPLE_FIELDS = {
   'input[type="email"]':    'jane@example.com',
 };
 
-// ── Tests — US (fast path) ────────────────────────────────────────────────────
+// ── Tests - US (fast path) ────────────────────────────────────────────────────
 
 test('applyRegionAliases: US person returns the same object reference', () => {
   const result = applyRegionAliases(SAMPLE_FIELDS, US_PERSON);
@@ -43,14 +43,14 @@ test('applyRegionAliases: US person leaves no province/postal/country keys added
   assert.ok(!keys.includes('country'),  'no country selector for US');
 });
 
-// ── Tests — missing/undefined country defaults to US ─────────────────────────
+// ── Tests - missing/undefined country defaults to US ─────────────────────────
 
 test('applyRegionAliases: undefined country treated as US (no augmentation)', () => {
   const result = applyRegionAliases(SAMPLE_FIELDS, { state: 'TX', zip: '73301' });
   assert.strictEqual(result, SAMPLE_FIELDS, 'no augmentation when country is absent');
 });
 
-// ── Tests — non-US: province aliases added ────────────────────────────────────
+// ── Tests - non-US: province aliases added ────────────────────────────────────
 
 test('applyRegionAliases: CA person gets province selector for state value', () => {
   const fields = { 'input[name*="state" i]': 'ON', 'input[type="email"]': 'x@x.com' };

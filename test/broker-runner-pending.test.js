@@ -1,5 +1,5 @@
 /**
- * test/broker-runner-pending.test.js — WP4 integration
+ * test/broker-runner-pending.test.js - WP4 integration
  *
  * Verifies that processBroker:
  *   - logs `pending_confirm` (not `success`) when the result page asks for
@@ -56,7 +56,7 @@ delete require.cache[brokerRunnerPath];
 const { configure, processBroker } = require('../lib/broker-runner');
 Module._load = originalLoad;
 
-// Minimal Playwright stub — supports newPage / page.goto / page.locator / page.close / page.evaluate.
+// Minimal Playwright stub - supports newPage / page.goto / page.locator / page.close / page.evaluate.
 function makeContext() {
   return {
     newPage: async () => ({

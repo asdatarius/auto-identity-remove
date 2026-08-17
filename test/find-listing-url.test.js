@@ -3,7 +3,7 @@
  *
  * Unit tests for findListingUrl() in lib/forms.js.
  *
- * Uses a Playwright page stub — no real browser. Verifies that:
+ * Uses a Playwright page stub - no real browser. Verifies that:
  *   1. Links matching listingPattern are returned
  *   2. waitUntil:'domcontentloaded' is requested (P4: avoid full networkidle waits on tracker-heavy sites)
  *   3. Returns null when no link matches

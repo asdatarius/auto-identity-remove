@@ -1,4 +1,4 @@
-# Testing Plan — auto-identity-remove
+# Testing Plan - auto-identity-remove
 
 **Date:** 2026-05-18
 **Target:** 100% functional coverage of the production paths, maximally automated, runnable on every commit and on a nightly schedule.
@@ -24,38 +24,38 @@ This doc covers what to test, how to automate it, and the layers that need to ex
 
 We test at five layers. Each layer answers a different question.
 
-### Layer 1 — Unit tests (pure)
+### Layer 1 - Unit tests (pure)
 
 **What:** Module-internal logic with all I/O mocked. **Where:** `test/*.test.js` (current home; 157 tests today).
 
 **Cover every:**
-- `lib/logger.js` — bucket routing, summary wording, disclaimer, reset
-- `lib/config.js` — recheck windows, `shouldSkip`, pending-confirm logic, dry-run state guard
-- `lib/confirm.js` — regex positive + negative cases
-- `lib/forms.js` — intl field map (province/postal/country fallbacks)
-- `lib/scheduler.js` — per-platform command-string generation (no execution)
-- `lib/notify.js` — per-platform dispatch, webhook payload shape
-- `lib/email.js` — Mail.app branch vs SMTP branch, lazy `nodemailer` require, fallback to manual
-- `lib/captcha.js` — CapSolver payload, error handling
-- `lib/platform.js` — process.platform → 'macos'/'linux'/'windows'
-- `lib/verifier.js` — three-classification logic (clear / still-listed / unverifiable)
-- `lib/aliaser.js` (WP-A3) — provider abstraction, caching, fallback
-- `lib/imap-confirmer.js` (WP-A2) — URL extraction, sender filtering
-- `lib/ai-filler.js` (WP-A1) — plan parsing, malformed-JSON handling, cache
-- `lib/concurrency.js` (WP-A5) — pool size, error propagation
-- `lib/complaint-gen.js` (WP-B2) — template rendering
-- `lib/dsar.js` (WP-C2) — per-state template selection
-- `lib/encrypted-config.js` (WP-D3) — round-trip encrypt/decrypt
-- `scripts/prune-dead.js` — aggregation correctness, idempotence
-- `scripts/reverse-search.js` (WP-B4) — broker-hostname matching
-- `scripts/dashboard.js` (WP-B3) — counts vs fixture logs
+- `lib/logger.js` - bucket routing, summary wording, disclaimer, reset
+- `lib/config.js` - recheck windows, `shouldSkip`, pending-confirm logic, dry-run state guard
+- `lib/confirm.js` - regex positive + negative cases
+- `lib/forms.js` - intl field map (province/postal/country fallbacks)
+- `lib/scheduler.js` - per-platform command-string generation (no execution)
+- `lib/notify.js` - per-platform dispatch, webhook payload shape
+- `lib/email.js` - Mail.app branch vs SMTP branch, lazy `nodemailer` require, fallback to manual
+- `lib/captcha.js` - CapSolver payload, error handling
+- `lib/platform.js` - process.platform → 'macos'/'linux'/'windows'
+- `lib/verifier.js` - three-classification logic (clear / still-listed / unverifiable)
+- `lib/aliaser.js` (WP-A3) - provider abstraction, caching, fallback
+- `lib/imap-confirmer.js` (WP-A2) - URL extraction, sender filtering
+- `lib/ai-filler.js` (WP-A1) - plan parsing, malformed-JSON handling, cache
+- `lib/concurrency.js` (WP-A5) - pool size, error propagation
+- `lib/complaint-gen.js` (WP-B2) - template rendering
+- `lib/dsar.js` (WP-C2) - per-state template selection
+- `lib/encrypted-config.js` (WP-D3) - round-trip encrypt/decrypt
+- `scripts/prune-dead.js` - aggregation correctness, idempotence
+- `scripts/reverse-search.js` (WP-B4) - broker-hostname matching
+- `scripts/dashboard.js` (WP-B3) - counts vs fixture logs
 
 **Rules:**
 - No network. Mock `fetch` / `imapflow.Client` / `node:child_process` at the boundary.
 - No real `state.json` mutation on disk. Tests that touch state use `withCleanState(fn)` (see `test/pending-confirm.test.js`) or `setDryRun(true)`.
 - Run time budget: full suite < 5 seconds.
 
-### Layer 2 — Integration tests (Playwright + fixture HTML)
+### Layer 2 - Integration tests (Playwright + fixture HTML)
 
 **What:** Run the real `generic-runner.js` and `lib/broker-runner.js` flows against captured HTML fixtures. **Where:** `test/integration/*.test.js` (new home; created by WP-D5).
 
@@ -64,7 +64,7 @@ We test at five layers. Each layer answers a different question.
 - `page.setContent(htmlFixture)` loads the captured page.
 - `processGenericUrl(page, ...)` runs end-to-end and we assert the returned status.
 
-**Coverage matrix (initial fixtures — WP-D5):**
+**Coverage matrix (initial fixtures - WP-D5):**
 
 | Fixture | Expected status | What it exercises |
 |---|---|---|
@@ -91,22 +91,22 @@ We test at five layers. Each layer answers a different question.
 - Run time budget: full integration suite < 60 seconds (with parallelism).
 - One failing fixture blocks merge.
 
-### Layer 3 — Mutation tests (Stryker)
+### Layer 3 - Mutation tests (Stryker)
 
 **What:** Verify the test suite actually catches bugs. **Where:** `stryker.conf.json` + `.github/workflows/mutation.yml`.
 
 **Why:** Coverage measures lines executed; mutation testing measures *assertions that fail when behavior changes*. A test that runs the code but asserts nothing useful has 100% coverage and 0% mutation kill.
 
 **Targets:**
-- `lib/confirm.js` — must achieve 100% mutation kill (small, critical)
-- `lib/config.js` (skip logic, recheck windows) — ≥ 90%
-- `lib/logger.js` (bucket routing) — ≥ 95%
-- `lib/forms.js` (intl field aliases) — ≥ 85%
+- `lib/confirm.js` - must achieve 100% mutation kill (small, critical)
+- `lib/config.js` (skip logic, recheck windows) - ≥ 90%
+- `lib/logger.js` (bucket routing) - ≥ 95%
+- `lib/forms.js` (intl field aliases) - ≥ 85%
 - Whole project: ≥ 75% baseline, fail PR if drops > 5 points
 
 **Cadence:** nightly. PRs only on `lib/confirm.js`, `lib/config.js`, `lib/logger.js` (small, fast).
 
-### Layer 4 — Live-broker canary
+### Layer 4 - Live-broker canary
 
 **What:** A tiny smoke run against a handful of well-behaved brokers, in `--verify` mode (read-only, never submits). **Where:** scheduled GitHub Action, weekly.
 
@@ -122,18 +122,18 @@ We test at five layers. Each layer answers a different question.
 
 **Cadence:** weekly. Not on PR (cost + flake).
 
-### Layer 5 — End-to-end dry-run
+### Layer 5 - End-to-end dry-run
 
 **What:** Run the full watcher in `--dry-run` mode in CI against all 521 brokers. **Where:** `.github/workflows/full-dry-run.yml`.
 
-**Why:** Catches integration regressions — anything that crashes the orchestrator, deadlocks, or floods stdout. `--dry-run` is guaranteed safe (Phase 0 fix verified state.json byte-identical).
+**Why:** Catches integration regressions - anything that crashes the orchestrator, deadlocks, or floods stdout. `--dry-run` is guaranteed safe (Phase 0 fix verified state.json byte-identical).
 
 **Setup:**
 - Use a checked-in `config.example.json`-derived test config in `test/fixtures/dry-run-config.json`.
 - Run `node watcher.js --dry-run` with a 30-min timeout.
 - Pass if exit code = 0 AND output contains expected summary lines (regex assertions).
 
-**Cadence:** every PR + nightly. ~10–20 min.
+**Cadence:** every PR + nightly. ~10-20 min.
 
 ---
 
@@ -146,7 +146,7 @@ We test at five layers. Each layer answers a different question.
 | `brokers/*.html` | Synthetic HTML for each strategy class (WP-D5) |
 | `har/<broker>.har` | Real captured network exchanges for replay (Layer 2) |
 | `confirm-emails/*.eml` | Sample confirmation emails (WP-A2 / IMAP) |
-| `state/*.json` | Various state shapes — fresh, pending, multi-profile, etc. |
+| `state/*.json` | Various state shapes - fresh, pending, multi-profile, etc. |
 | `logs/*.json` | Aggregated run logs (`prune-dead`, dashboard) |
 | `ai-responses/*.json` | Captured Claude API responses for filler tests (WP-A1) |
 | `dsar-emails/<state>.txt` | Expected email body per state (WP-C2) |
@@ -160,13 +160,13 @@ Every test that touches `lib/config.js` state MUST go through `withCleanState(fn
 2. Runs the test
 3. Restores any previously-existing entry
 
-This pattern is mandatory — without it, test order leaks state between tests and breaks reproducibility.
+This pattern is mandatory - without it, test order leaks state between tests and breaks reproducibility.
 
 ---
 
 ## CI workflows
 
-### `.github/workflows/test.yml` — every PR + push
+### `.github/workflows/test.yml` - every PR + push
 
 ```
 jobs:
@@ -259,7 +259,7 @@ jobs:
 Optional but recommended. `.husky/pre-commit`:
 1. `node --test test/*.test.js` (run only changed test files via filename glob if you want faster)
 2. `npx eslint --fix` changed files
-3. Forbid committing `config.json` / `state.json` / `logs/` (already gitignored — belt + braces)
+3. Forbid committing `config.json` / `state.json` / `logs/` (already gitignored - belt + braces)
 
 ---
 
@@ -310,7 +310,7 @@ This matrix is the source of truth for "we tested every failure." Each row maps 
 - Real network. Ever, except canary (Layer 4).
 - Real CapSolver API calls.
 - Real broker submissions.
-- macOS-specific GUI integration (osascript / Mail.app actually sending) — mock at the `child_process` boundary.
+- macOS-specific GUI integration (osascript / Mail.app actually sending) - mock at the `child_process` boundary.
 - Library code we don't own (`playwright`, `nodemailer`, `imapflow` internals).
 
 ---
@@ -364,7 +364,7 @@ npm i -D c8 @stryker-mutator/core @stryker-mutator/node-test-runner eslint actio
 
 ## Definition of "100% functional coverage"
 
-We will not claim 100% line coverage — chasing the last 5% drives meaningless tests against `try { x } catch (_) {}` branches. Instead, we define functional coverage as:
+We will not claim 100% line coverage - chasing the last 5% drives meaningless tests against `try { x } catch (_) {}` branches. Instead, we define functional coverage as:
 
 > Every documented behavior in `README.md` and every public function in `lib/*.js` has at least one test asserting its contract, AND every failure mode in the matrix above has at least one test asserting the system degrades gracefully.
 

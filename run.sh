@@ -1,5 +1,5 @@
 #!/bin/bash
-# auto-identity-remove — manual trigger
+# auto-identity-remove - manual trigger
 # Usage: ./run.sh
 
 set -e

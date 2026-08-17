@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * auto-identity-remove — watcher.js (thin orchestrator)
+ * auto-identity-remove - watcher.js (thin orchestrator)
  *
  * Automated data broker opt-out runner. Internals live in lib/ (config,
  * logger, notify, captcha, forms, broker-runner, platform).
@@ -24,6 +24,7 @@ const { addToAllowlist, removeFromAllowlist, parseAllowlistArgs } = require('./l
 const { diffResults, loadPreviousLog } = require('./lib/diff');
 const { renderAuditMarkdown, writeAuditFile, timestampForFilename } = require('./lib/audit');
 const { buildStealthScript } = require('./lib/stealth');
+const { buildLaunchOptions, resolveHeadless, isLowMemory } = require('./lib/browser');
 
 const PREVIEW           = process.argv.includes('--preview');
 const DRY_RUN           = process.argv.includes('--dry-run') || PREVIEW; // --preview implies --dry-run
@@ -404,10 +405,7 @@ if (COMPLAINTS_MODE) {
       }
       const profileDirForPdf = (config.profileDir || '~/.config/auto-identity-remove')
         .replace(/^~(?=\/|$)/, os.homedir());
-      context = await chromiumForPdf.launchPersistentContext(profileDirForPdf, {
-        headless: true,
-        viewport: { width: 1280, height: 900 },
-      });
+      context = await chromiumForPdf.launchPersistentContext(profileDirForPdf, buildLaunchOptions({ headless: true }));
       newPage = () => context.newPage();
     } else {
       console.log('\nDRY RUN - writing complaint text only, skipping PDF generation.');
@@ -459,10 +457,7 @@ if (CONFIRM_EMAILS) {
 
   (async () => {
     console.log(`\nProcessing confirmation emails from: ${confirmEmailsDir}`);
-    const context = await chromiumForConfirm.launchPersistentContext(profileDirForConfirm, {
-      headless: true,
-      viewport: { width: 1280, height: 900 },
-    });
+    const context = await chromiumForConfirm.launchPersistentContext(profileDirForConfirm, buildLaunchOptions({ headless: true }));
 
     try {
       const result = await processConfirmationEmails(context, brokers, {
@@ -546,10 +541,7 @@ try {
   fs.mkdirSync(REPORT_DIR, { recursive: true });
   const outPath = reportPdfPath(new Date());
 
-  const context = await chromiumForReport.launchPersistentContext(profileDirForReport, {
-    headless: true,
-    viewport: { width: 1280, height: 900 },
-  });
+  const context = await chromiumForReport.launchPersistentContext(profileDirForReport, buildLaunchOptions({ headless: true }));
 
   try {
     await renderReportPdf({ html, outPath, context });
@@ -704,7 +696,7 @@ if (KNOW_MODE) {
 brokerRunner.configure({ dryRun: DRY_RUN, preview: PREVIEW, person: persons[0], capsolver: config.capsolver, noCapsolver: NO_CAPSOLVER, snapshot: SNAPSHOT, personCount: persons.length, config });
 
 // Detect brokers that have been consistently unreachable across recent runs.
-// Defunct brokers still run — the warning is informational so the user can
+// Defunct brokers still run - the warning is informational so the user can
 // prune stale entries from brokers.js if the site is truly gone.
 const defunctNames = findDefunct(state.optOuts || {});
 if (defunctNames.length > 0) {
@@ -762,11 +754,11 @@ async function _mainBody() {
   const brokers = require('./brokers');
   const { runGenericBrokers } = require('./generic-runner');
 
-  console.log('\n🔒 auto-identity-remove — starting run');
-  if (PREVIEW)       console.log('👀 PREVIEW — field values and target URLs will be printed before submit. No state will be saved.');
-  else if (DRY_RUN)  console.log('🧪 DRY RUN — forms will be filled but NOT submitted. No state will be saved.');
-  if (VERIFY)        console.log('🔍 VERIFY — re-checking listings. No forms submitted. Verification results are saved.');
-  if (POLLUTE_COUNT) console.log(`⚠️  NOISE MODE — ${POLLUTE_COUNT} bogus record(s) will be submitted to acceptsBogus brokers.`);
+  console.log('\n🔒 auto-identity-remove - starting run');
+  if (PREVIEW)       console.log('👀 PREVIEW - field values and target URLs will be printed before submit. No state will be saved.');
+  else if (DRY_RUN)  console.log('🧪 DRY RUN - forms will be filled but NOT submitted. No state will be saved.');
+  if (VERIFY)        console.log('🔍 VERIFY - re-checking listings. No forms submitted. Verification results are saved.');
+  if (POLLUTE_COUNT) console.log(`⚠️  NOISE MODE - ${POLLUTE_COUNT} bogus record(s) will be submitted to acceptsBogus brokers.`);
   console.log(`📅 ${new Date().toLocaleString()}`);
   console.log(`📋 ${brokers.length} explicit brokers + 500+ generic | re-check window: ${RECHECK_DAYS} days\n`);
 
@@ -777,19 +769,10 @@ async function _mainBody() {
   // Default to false (headed) on platforms where a display is likely present.
   // In Docker (no $DISPLAY on linux), default to headless: true so the tool actually runs.
   const headlessEnv = process.env.HEADLESS;
-  const headless = headlessEnv === '1' || headlessEnv === 'true'
-    ? true
-    : headlessEnv === '0' || headlessEnv === 'false'
-    ? false
-    : (process.platform === 'linux' && !process.env.DISPLAY); // auto: headless in linux containers
-  console.log(`🖥  Browser mode: ${headless ? 'headless' : 'headed'}${headlessEnv === undefined && process.platform === 'linux' ? ' (auto-detected)' : ''}`);
+  const headless = resolveHeadless();
+  console.log(`🖥  Browser mode: ${headless ? 'headless' : 'headed'}${headlessEnv === undefined && process.platform === 'linux' ? ' (auto-detected)' : ''}${isLowMemory() ? ' [low-memory profile]' : ''}`);
 
-  const context = await chromium.launchPersistentContext(profileDir, {
-    headless,
-    viewport: { width: 1280, height: 900 },
-    args: ['--no-first-run', '--disable-blink-features=AutomationControlled'],
-    ignoreDefaultArgs: ['--enable-automation'],
-  });
+  const context = await chromium.launchPersistentContext(profileDir, buildLaunchOptions({ headless }));
   await context.addInitScript(buildStealthScript());
 
   // ── Verify mode: T+7 post-submit verification loop ───────────────────────
@@ -801,7 +784,7 @@ async function _mainBody() {
 
     // Print summary
     console.log('\n' + '='.repeat(54));
-    console.log('Verification results — ' + new Date().toLocaleString());
+    console.log('Verification results - ' + new Date().toLocaleString());
     console.log('='.repeat(54));
     console.log(`  verified_clear : ${result.verified_clear.length}`);
     console.log(`  still_listed   : ${result.still_listed.length}`);
@@ -821,14 +804,14 @@ async function _mainBody() {
   // ── SERP scan mode: search-engine broker visibility audit ────────────────
   if (SERP_SCAN) {
     const { runSerpScan } = require('./lib/serp-scan');
-    console.log('\n🔎 SERP scan — checking broker visibility in search engines');
+    console.log('\n🔎 SERP scan - checking broker visibility in search engines');
     console.log('   DDG first, then Bing, then Google (may be blocked).\n');
     const summary = await runSerpScan(context, persons, brokers);
     await context.close().catch(() => {});
 
     const pad = (s, n) => String(s).padEnd(n);
     console.log('\n' + '='.repeat(62));
-    console.log('SERP Scan Results — ' + new Date().toLocaleString());
+    console.log('SERP Scan Results - ' + new Date().toLocaleString());
     console.log('='.repeat(62));
 
     if (summary.blocked.length > 0) {
@@ -891,7 +874,7 @@ async function _mainBody() {
   if (RETRY_FAILED) {
     const log = loadLastLog(LOG_DIR);
     if (!log) {
-      console.log('⚠️  --retry-failed: no previous log found in logs/ — running all brokers.');
+      console.log('⚠️  --retry-failed: no previous log found in logs/ - running all brokers.');
     } else {
       retryFailedFromLog = extractFailedBrokers(log);
       console.log(`🔄 --retry-failed: ${retryFailedFromLog.size} broker(s) from last log`);
@@ -908,7 +891,7 @@ async function _mainBody() {
     submissionEmails.set(person, await getSubmissionEmail({ config, person, state }));
   }
 
-  // Email opt-outs (no browser needed — skipped in verify mode).
+  // Email opt-outs (no browser needed - skipped in verify mode).
   // Called once before the per-person loop: sendOptOutEmails already iterates
   // all persons internally, so calling it inside the loop would send N× the
   // emails for an N-person config.
@@ -936,6 +919,11 @@ async function _mainBody() {
 
     brokerRunner.configure({ dryRun: DRY_RUN, preview: PREVIEW, person, capsolver: config.capsolver, noCapsolver: NO_CAPSOLVER, snapshot: SNAPSHOT, personCount: persons.length, config, submissionEmail });
 
+    // Rebuild the broker list for THIS person. brokers.js interpolates names,
+    // city, state, zip and email into searchUrl and formFields, so reusing the
+    // module-level array would submit persons[0]'s PII on every iteration.
+    const personBrokers = brokers.forPerson(person);
+
     const filterOpts = {
       only:             ONLY_ARG,
       skip:             SKIP_ARG,
@@ -943,7 +931,7 @@ async function _mainBody() {
     };
 
     let sorted = applyFilter(
-      [...brokers]
+      [...personBrokers]
         .filter(b => b.method !== 'email')
         .sort((a, b) => (a.priority || 9) - (b.priority || 9)),
       filterOpts
@@ -968,7 +956,7 @@ async function _mainBody() {
     }
 
     if (ONLY_ARG || SKIP_ARG || RETRY_FAILED) {
-      console.log(`🔎 Filter applied — ${sorted.length} broker(s) will run`);
+      console.log(`🔎 Filter applied - ${sorted.length} broker(s) will run`);
     }
 
     console.log('\n── Explicit broker opt-outs ───────────────────────────────');
@@ -985,9 +973,9 @@ async function _mainBody() {
       const bogBrokers = brokers.filter(b => b.acceptsBogus === true);
 
       if (bogBrokers.length === 0) {
-        console.log('\n⚠️  --pollute: no brokers tagged acceptsBogus: true — nothing to do.');
+        console.log('\n⚠️  --pollute: no brokers tagged acceptsBogus: true - nothing to do.');
       } else {
-        console.log(`\n── Noise mode — submitting ${POLLUTE_COUNT} bogus record(s) to ${bogBrokers.length} broker(s) ─`);
+        console.log(`\n── Noise mode - submitting ${POLLUTE_COUNT} bogus record(s) to ${bogBrokers.length} broker(s) ─`);
         for (let i = 0; i < POLLUTE_COUNT; i++) {
           const fakePerson = generateBogusPerson();
           console.log(`\n   [bogus ${i + 1}/${POLLUTE_COUNT}] ${fakePerson.firstName} ${fakePerson.lastName} (${fakePerson.city}, ${fakePerson.state})`);
@@ -1001,8 +989,6 @@ async function _mainBody() {
   }
 
   // Build the set of explicit broker hostnames so generic-runner can skip them.
-  // Generic opt-outs are domain-level (not person-specific), so this runs once
-  // after all persons' explicit opt-outs are complete.
   const explicitHosts = new Set(
     brokers.map(b => {
       try {
@@ -1011,13 +997,36 @@ async function _mainBody() {
     }).filter(Boolean)
   );
 
-  // generic-runner.js returns { count, genericStats }; store stats so they
-  // appear in the summary and in the run-log JSON. Runs once (domain-level,
-  // not per-person). Uses persons[0] internally via activePerson().
-  const genericResult = await runGenericBrokers(context, explicitHosts, state, logResult, recordSuccess, { dryRun: DRY_RUN });
-  if (genericResult && genericResult.genericStats) {
-    results.genericStats = genericResult.genericStats;
+  // One generic pass PER PERSON.
+  //
+  // This used to run once, using persons[0], with state keyed on the bare broker
+  // name. But fillGenericForm() submits a real name, email, state and zip - so
+  // "generic" is not person-agnostic for the brokers that take a form. The old
+  // shape meant only persons[0] was ever requested while the single state entry
+  // marked the broker done for the whole household, and the report claimed
+  // everyone had been opted out.
+  //
+  // The cost is real and worth naming: an N-person run now does the ~490-broker
+  // generic pass N times, so wall-clock scales with N. Correct coverage beats a
+  // faster run that quietly skips people. Domain-level toggles (cookie /
+  // "Do Not Sell") get re-applied per person, which is harmless.
+  const genericTotals = {};
+  for (const person of persons) {
+    if (persons.length > 1) {
+      console.log(`\n── Generic brokers for ${person.firstName} ${person.lastName} ──`);
+    }
+    const genericResult = await runGenericBrokers(context, explicitHosts, state, logResult, recordSuccess, {
+      dryRun: DRY_RUN,
+      person,
+      personCount: persons.length,
+    });
+    if (genericResult && genericResult.genericStats) {
+      for (const [k, v] of Object.entries(genericResult.genericStats)) {
+        genericTotals[k] = (genericTotals[k] || 0) + (typeof v === 'number' ? v : 0);
+      }
+    }
   }
+  results.genericStats = genericTotals;
 
   // Clear checkpoint now that the run completed successfully
   clearCheckpoint();

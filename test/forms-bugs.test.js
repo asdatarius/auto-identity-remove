@@ -127,7 +127,7 @@ test('fillForm does not throw when formFields key contains regex metacharacters'
         }),
       };
     },
-    // Resolver fallback round-trip after a label miss — no-op stub returns no match.
+    // Resolver fallback round-trip after a label miss - no-op stub returns no match.
     evaluate: async () => ({ found: false }),
   };
 
@@ -279,7 +279,7 @@ test('fillForm getByLabel fallback uses escaped regex so metachar does not cause
         }),
       };
     },
-    // Resolver fallback round-trip after a label miss — no-op stub returns no match.
+    // Resolver fallback round-trip after a label miss - no-op stub returns no match.
     evaluate: async () => ({ found: false }),
   };
 

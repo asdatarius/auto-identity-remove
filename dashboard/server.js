@@ -1,11 +1,11 @@
 'use strict';
 /*
- * auto-identity-remove — web dashboard (optional)
+ * auto-identity-remove - web dashboard (optional)
  *
  * A small, dependency-light (express-only) control panel that wraps the
  * existing CLI. It reads the project's own files (brokers.js, config.json,
  * state.json, logs/) and drives watcher.js for runs. No personal data lives
- * here — everything is read from / written to the project's config.json.
+ * here - everything is read from / written to the project's config.json.
  *
  * Endpoints (all require auth EXCEPT /api/health):
  *   GET  /api/health             -> { ok } liveness (unauthenticated, no path disclosure)
@@ -33,7 +33,7 @@
  *   request is allowed if it satisfies EITHER. Credentials can be changed at
  *   runtime via the Admin tab, which writes a scrypt-hashed dashboard/.auth.json
  *   that overrides the env vars. If nothing is set the dashboard is open (a
- *   warning is logged) — only acceptable on a trusted, isolated network.
+ *   warning is logged) - only acceptable on a trusted, isolated network.
  *   Cross-origin mutating requests are rejected (CSRF defense); the app does
  *   not depend on a reverse proxy for access control.
  */
@@ -48,7 +48,7 @@ const { configStatus } = require('./config-status');
 const { FREEZE_TARGETS, TARGET_KEYS, getFreezeStatus } = require('../lib/freeze');
 
 const ROOT = path.resolve(__dirname, '..');
-// Honour the same AIDR_* path overrides as lib/config.js/watcher.js — otherwise
+// Honour the same AIDR_* path overrides as lib/config.js/watcher.js - otherwise
 // the dashboard reads/writes different files than the watcher in a container.
 const CONFIG = process.env.AIDR_CONFIG || path.join(ROOT, 'config.json');
 const CONFIG_ENC = CONFIG + '.enc';
@@ -86,7 +86,7 @@ function safeEq(a, b) {
 function hashPw(pw, salt) { return crypto.scryptSync(String(pw), salt, 64).toString('hex'); }
 function makeCred(user, pw) { const salt = crypto.randomBytes(16).toString('hex'); return { user, salt, hash: hashPw(pw, salt) }; }
 // Returns the active credential, or {source:'broken'} (fail-closed) if .auth.json
-// exists but is corrupt/incomplete — never silently downgrades to env/open in that case.
+// exists but is corrupt/incomplete - never silently downgrades to env/open in that case.
 function loadCreds() {
   let raw = null;
   try { raw = fs.readFileSync(AUTH_FILE, 'utf8'); }
@@ -110,7 +110,7 @@ const authConfigured = () => !!(loadCreds() || TOKEN);
 
 function authorized(req) {
   if (!authConfigured()) return true;
-  if (TOKEN) { // header only — never accept the token via query string (leaks to logs/history)
+  if (TOKEN) { // header only - never accept the token via query string (leaks to logs/history)
     const t = req.get('x-aidr-token');
     if (t && safeEq(t, TOKEN)) return true;
   }
@@ -157,7 +157,7 @@ app.post('/api/auth/password', (req, res) => {
     const ok = c.source === 'file' ? safeEq(hashPw(currentPassword || '', c.salt), c.hash) : safeEq(currentPassword || '', c.pass);
     if (!ok) return res.status(403).json({ error: 'current password is incorrect' });
   } else if (c && c.source === 'broken') {
-    return res.status(409).json({ error: '.auth.json is corrupt — fix or delete it on the server first' });
+    return res.status(409).json({ error: '.auth.json is corrupt - fix or delete it on the server first' });
   }
   const user = (newUsername && String(newUsername).trim()) || (c && c.user) || 'admin';
   try {
@@ -230,8 +230,14 @@ function loadBrokers() {
 }
 
 // Mask secret leaves so they never reach the browser.
+// Every secret leaf config.example.json can define. Adding a credential to the
+// example config without adding it here leaks it verbatim through
+// GET /api/config to anything with dashboard read access - which is how
+// relay.apiKey (SimpleLogin) and hibp.apiKey went unmasked.
 const SECRET_PATHS = [
   ['capsolver', 'apiKey'],
+  ['hibp', 'apiKey'],
+  ['relay', 'apiKey'],
   ['email', 'smtp', 'pass'],
   ['notify', 'webhook'],
 ];
@@ -350,8 +356,8 @@ function startRun(mode, opts = {}) {
   const onData = buf => String(buf).split(/\r?\n/).forEach(l => { if (l.length) pushLine(l); });
   child.stdout.on('data', onData);
   child.stderr.on('data', onData);
-  child.on('close', code => { pushLine(`— process exited with code ${code} —`); finalizeRun(code); });
-  child.on('error', err => { pushLine(`— spawn error: ${err.message} —`); finalizeRun(-1); });
+  child.on('close', code => { pushLine(`- process exited with code ${code} -`); finalizeRun(code); });
+  child.on('error', err => { pushLine(`- spawn error: ${err.message} -`); finalizeRun(-1); });
   return { ok: true, mode };
 }
 
@@ -458,8 +464,19 @@ app.put('/api/config', (req, res) => {
   const merged = mergeConfig(existing, incoming);
   const passphrase = CONFIG_PASSPHRASE;
   const encrypted = isConfigEncrypted({ configPath: CONFIG, encPath: CONFIG_ENC });
+  // Refuse rather than fall back to plaintext. Writing config.json next to an
+  // active config.json.enc put the full PII back on disk in the clear AND had no
+  // effect, because loadConfig() prefers the .enc file - a silent double
+  // failure. Make the operator supply the passphrase instead.
+  if (encrypted && !passphrase) {
+    return res.status(409).json({
+      error: 'Config is encrypted but no passphrase is available to this process. '
+        + 'Restart the dashboard with AIDR_PASSPHRASE set; refusing to write a plaintext config.json.',
+    });
+  }
+
   try {
-    if (encrypted && passphrase) {
+    if (encrypted) {
       // Re-encrypt the merged config and write to the enc file.
       const envelope = secrets.encryptConfig(merged, passphrase);
       writeJsonAtomic(CONFIG_ENC, envelope, 0o600);
@@ -476,7 +493,7 @@ app.get('/api/logs', (_req, res) => {
     for (const ent of fs.readdirSync(LOGS, { withFileTypes: true })) {
       if (!ent.isFile() || !/\.(json|log|txt)$/.test(ent.name)) continue;
       try { const st = fs.statSync(path.join(LOGS, ent.name)); files.push({ name: ent.name, size: st.size, mtime: st.mtimeMs }); }
-      catch (_) {} // entry vanished mid-listing — skip it, keep the rest
+      catch (_) {} // entry vanished mid-listing - skip it, keep the rest
     }
     files.sort((a, b) => b.mtime - a.mtime);
   } catch (_) {} // logs dir absent/unreadable -> empty list

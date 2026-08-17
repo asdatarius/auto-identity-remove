@@ -1,7 +1,7 @@
 /**
  * test/forms-intl-postal.test.js
  *
- * WP6 — Non-US postal code handling.
+ * WP6 - Non-US postal code handling.
  *
  * Verifies that applyRegionAliases():
  *   1. Does NOT strip spaces or letters from non-numeric postal codes.
@@ -50,10 +50,10 @@ const POSTAL_CASES = [
   { country: 'NZ', postal: '6011',     label: 'New Zealand numeric postcode' },
 ];
 
-// ── Tests — postcode selector is present for each country ─────────────────────
+// ── Tests - postcode selector is present for each country ─────────────────────
 
 for (const { country, postal, label } of POSTAL_CASES) {
-  test(`applyRegionAliases: ${label} — postcode selector added`, () => {
+  test(`applyRegionAliases: ${label} - postcode selector added`, () => {
     const person = { country, zip: postal };
     const result = applyRegionAliases(fieldsForPostal(postal), person);
     const key = findPostcodeKey(result);
@@ -61,10 +61,10 @@ for (const { country, postal, label } of POSTAL_CASES) {
   });
 }
 
-// ── Tests — postal-code value preserved verbatim ──────────────────────────────
+// ── Tests - postal-code value preserved verbatim ──────────────────────────────
 
 for (const { country, postal, label } of POSTAL_CASES) {
-  test(`applyRegionAliases: ${label} — value preserved verbatim`, () => {
+  test(`applyRegionAliases: ${label} - value preserved verbatim`, () => {
     const person = { country, zip: postal };
     const result = applyRegionAliases(fieldsForPostal(postal), person);
     const key = findPostcodeKey(result);
@@ -77,7 +77,7 @@ for (const { country, postal, label } of POSTAL_CASES) {
   });
 }
 
-// ── Tests — digit-preservation invariant ─────────────────────────────────────
+// ── Tests - digit-preservation invariant ─────────────────────────────────────
 
 test('applyRegionAliases: spaces in postal codes are NOT stripped', () => {
   const person = { country: 'CA', zip: 'K1A 0A6' };
@@ -103,7 +103,7 @@ test('applyRegionAliases: numeric AU postcode preserved as string (no leading-ze
   assert.strictEqual(result[key], '0800', 'leading zero must be preserved');
 });
 
-// ── Tests — US default behavior unchanged ─────────────────────────────────────
+// ── Tests - US default behavior unchanged ─────────────────────────────────────
 
 test('applyRegionAliases: US person is unaffected (same reference)', () => {
   const fields = fieldsForPostal('73301');
@@ -117,7 +117,7 @@ test('applyRegionAliases: US zip value is preserved unchanged', () => {
   assert.strictEqual(result['input[name*="zip" i]'], '10001');
 });
 
-// ── Tests — normalizePhone ────────────────────────────────────────────────────
+// ── Tests - normalizePhone ────────────────────────────────────────────────────
 
 test('normalizePhone: US 10-digit number formatted as (xxx) xxx-xxxx', () => {
   const formatted = normalizePhone('6045551234', 'US');
@@ -130,7 +130,7 @@ test('normalizePhone: US number already formatted is returned as-is', () => {
 });
 
 test('normalizePhone: CA 10-digit number formatted as (xxx) xxx-xxxx', () => {
-  // Canada uses NANP — same format as US
+  // Canada uses NANP - same format as US
   const formatted = normalizePhone('6135551234', 'CA');
   assert.strictEqual(formatted, '(613) 555-1234');
 });

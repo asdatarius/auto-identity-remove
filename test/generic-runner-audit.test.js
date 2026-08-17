@@ -126,7 +126,7 @@ test('runGenericBrokers counts dry-run-skipped outcome separately', async () => 
   ];
 
   const injectedProcessFn = async (_page, broker, _state, dryRun) => {
-    if (dryRun) return { status: 'skipped', detail: 'dry-run — generic opt-out not submitted' };
+    if (dryRun) return { status: 'skipped', detail: 'dry-run - generic opt-out not submitted' };
     return { status: 'success', detail: 'Form submitted' };
   };
 
@@ -183,7 +183,7 @@ test('runGenericBrokers count: total = submitted + no_form_found + error + dry-r
     { status: 'success', detail: 'ok' },
     { status: 'manual', detail: 'link' },
     { status: 'error', detail: 'Timeout' },
-    { status: 'skipped', detail: 'dry-run — generic opt-out not submitted' },
+    { status: 'skipped', detail: 'dry-run - generic opt-out not submitted' },
     { status: 'skipped', detail: '12d ago' },
     { status: 'dead', detail: 'HTTP 404' },
   ];

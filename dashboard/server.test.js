@@ -837,3 +837,80 @@ test('PUT /api/config with a nested __proto__ does not pollute and is dropped', 
     await close();
   }
 });
+
+// -- Issue #8 cross-model review: secret masking + plaintext-spill guard -------
+//
+// Two independent reviews (OpenAI codex and a second Claude pass) both flagged
+// that SECRET_PATHS covered only 3 of the 5 secret leaves config.example.json
+// actually defines. GET /api/config returned relay.apiKey (SimpleLogin) and
+// hibp.apiKey verbatim to the browser, so anyone with dashboard read access
+// walked away with reusable third-party API keys.
+
+test('maskConfig masks the SimpleLogin relay API key', () => {
+  const masked = maskConfig({ relay: { apiKey: 'SL-LIVE-SECRET' } });
+  assert.equal(masked.relay.apiKey, MASK, 'relay.apiKey is a live credential and must be masked');
+});
+
+test('maskConfig masks the HIBP API key', () => {
+  const masked = maskConfig({ hibp: { apiKey: 'HIBP-LIVE-SECRET' } });
+  assert.equal(masked.hibp.apiKey, MASK, 'hibp.apiKey is a paid credential and must be masked');
+});
+
+test('maskConfig covers every secret leaf that config.example.json declares', () => {
+  // Guard against the next secret being added to the example config without a
+  // matching SECRET_PATHS entry.
+  const full = {
+    capsolver: { apiKey: 'a' },
+    hibp: { apiKey: 'b' },
+    relay: { apiKey: 'c' },
+    email: { smtp: { pass: 'd' } },
+    notify: { webhook: 'https://hooks.example.com/e' },
+    accounts: { spokeo: { email: 'x@y.z', password: 'f' } },
+  };
+  const masked = maskConfig(full);
+  const leaked = [];
+  const walk = (o, trail) => {
+    for (const [k, v] of Object.entries(o || {})) {
+      if (v && typeof v === 'object') walk(v, [...trail, k]);
+      else if (typeof v === 'string' && ['a', 'b', 'c', 'd', 'f'].includes(v)) leaked.push([...trail, k].join('.'));
+      else if (typeof v === 'string' && v.startsWith('https://hooks.')) leaked.push([...trail, k].join('.'));
+    }
+  };
+  walk(masked, []);
+  assert.deepEqual(leaked, [], `unmasked secrets returned to the browser: ${leaked.join(', ')}`);
+});
+
+test('PUT /api/config refuses to write plaintext beside an active encrypted config', async () => {
+  // The old else-branch wrote a plaintext config.json whenever config.json.enc
+  // existed but AIDR_PASSPHRASE was unset. Two harms at once: full PII landed on
+  // disk in the clear, and loadConfig() still prefers the .enc file, so the edit
+  // the operator just made silently did nothing.
+  const plain = { person: { firstName: 'Alice', lastName: 'Smith' }, capsolver: { apiKey: 'ORIGINAL' } };
+  const envelope = secrets.encryptConfig(plain, 'the-real-passphrase');
+  const { server, close, realConfig } = await buildServer({ encContent: envelope }); // no passphrase
+  try {
+    const r = await request(server, {
+      method: 'PUT',
+      pathname: '/api/config',
+      headers: {
+        Authorization: basicAuth('testuser', 'testpass'),
+        Origin: `http://127.0.0.1:${server.address().port}`,
+      },
+      body: { config: { person: { firstName: 'Updated', lastName: 'Smith' } } },
+    });
+
+    assert.notEqual(r.status, 200, 'the write must be rejected, not silently downgraded to plaintext');
+    assert.match(
+      JSON.stringify(r.json || {}),
+      /passphrase/i,
+      'the error should tell the operator to supply AIDR_PASSPHRASE',
+    );
+    assert.equal(
+      fs.existsSync(realConfig),
+      false,
+      'no plaintext config.json may be created next to an active config.json.enc',
+    );
+  } finally {
+    await close();
+  }
+});

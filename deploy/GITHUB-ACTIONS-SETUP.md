@@ -1,9 +1,9 @@
-# GitHub fork + Actions — build images in the cloud & track upstream
+# GitHub fork + Actions - build images in the cloud & track upstream
 
 This sets up your **own fork** of `auto-identity-remove` on GitHub so that:
 
 - **GitHub Actions builds the multi-arch image** (`deploy/Dockerfile`) and pushes it
-  to Docker Hub automatically — on every push to `main`, a manual button, and weekly.
+  to Docker Hub automatically - on every push to `main`, a manual button, and weekly.
   No more building on your Mac.
 - A **weekly upstream-sync** opens a PR when `stephenlthorn/auto-identity-remove`
   gets new commits. You review/merge it → that triggers a fresh build.
@@ -11,8 +11,8 @@ This sets up your **own fork** of `auto-identity-remove` on GitHub so that:
 Your namespace: **`asdatarius`**. Your fork will be **`asdatarius/auto-identity-remove`**.
 
 The two workflow files already exist in this repo:
-- `.github/workflows/deploy-image.yml` — build & push
-- `.github/workflows/upstream-sync.yml` — weekly upstream PR
+- `.github/workflows/deploy-image.yml` - build & push
+- `.github/workflows/upstream-sync.yml` - weekly upstream PR
 
 ---
 
@@ -30,25 +30,25 @@ Your image is **upstream + your changes**. The changes live in normal source fil
 
 "Syncing upstream" = **merging upstream's new commits into your patched `main`**. If
 upstream edits the same lines you patched, the sync PR will show conflicts to resolve
-(rare — the patches are deliberately small).
+(rare - the patches are deliberately small).
 
 ---
 
 ## One-time setup
 
-### Step 1 — Fork on GitHub
+### Step 1 - Fork on GitHub
 Open <https://github.com/stephenlthorn/auto-identity-remove> → click **Fork** →
 owner **asdatarius** → **Create fork**. You now have
 `https://github.com/asdatarius/auto-identity-remove`.
 
-### Step 2 — Create a Docker Hub access token
+### Step 2 - Create a Docker Hub access token
 hub.docker.com → your avatar → **Account Settings → Personal access tokens** →
 **Generate new token**. Name it `github-actions`, permissions **Read, Write, Delete**
-(Delete is required by the Docker Hub description-sync API — a Read & Write token
+(Delete is required by the Docker Hub description-sync API - a Read & Write token
 can push images but gets `Forbidden` on the description update).
 **Copy the token now** (shown once).
 
-### Step 3 — Add the secrets to your fork
+### Step 3 - Add the secrets to your fork
 Fork → **Settings → Secrets and variables → Actions → New repository secret**. Add two:
 
 | Name | Value |
@@ -59,18 +59,18 @@ Fork → **Settings → Secrets and variables → Actions → New repository sec
 > The build tags the image as `${DOCKERHUB_USERNAME}/auto-identity-remove`, so this
 > secret must exist **before** the first build.
 
-### Step 4 — Set workflow permissions (needed for the sync PR)
+### Step 4 - Set workflow permissions (needed for the sync PR)
 Fork → **Settings → Actions → General → Workflow permissions**:
 - ✅ **Read and write permissions**
 - ✅ **Allow GitHub Actions to create and approve pull requests**
 
 Click **Save**.
 
-### Step 5 — Enable Actions on the fork
+### Step 5 - Enable Actions on the fork
 Forks have Actions disabled by default. Fork → **Actions** tab →
 **"I understand my workflows, go ahead and enable them"**.
 
-### Step 6 — Push your patched code to the fork
+### Step 6 - Push your patched code to the fork
 On your Mac, in the local clone (currently `origin` = upstream). Repoint `origin` to
 your fork and push everything:
 
@@ -116,7 +116,7 @@ upstream gets commits
  Portainer: re-pull image + recreate  ──►  NAS runs the new version
 ```
 
-**Deploy stays manual on purpose** — this tool submits your family's real data, so you
+**Deploy stays manual on purpose** - this tool submits your family's real data, so you
 glance at the upstream diff before letting new code run. Don't wire Watchtower to
 auto-pull `:latest` unattended.
 
@@ -141,7 +141,7 @@ The PR updates; merge it when clean.
 ### Updating the NAS after a new image
 Portainer → your stack → **Update the stack** → tick **Re-pull image and redeploy**
 (or SSH: `docker pull asdatarius/auto-identity-remove:latest` then recreate).
-`config.json` and `state.json` survive — they're on the `/data` volume.
+`config.json` and `state.json` survive - they're on the `/data` volume.
 
 ---
 
@@ -163,15 +163,15 @@ compose `image:` to a `sha-...` or date tag.
 | Symptom | Fix |
 |---|---|
 | First build fails: `invalid reference format` / empty image name | `DOCKERHUB_USERNAME` secret missing (Step 3) |
-| Build fails on `docker login` | `DOCKERHUB_TOKEN` wrong/expired, or not Read+Write — regenerate (Step 2) |
+| Build fails on `docker login` | `DOCKERHUB_TOKEN` wrong/expired, or not Read+Write - regenerate (Step 2) |
 | `upstream-sync` can't open a PR | Step 4 toggle "Allow Actions to create PRs" is off |
 | No workflows run at all | Actions not enabled on the fork (Step 5) |
 | Weekly jobs silently stopped | GitHub **pauses scheduled workflows after ~60 days of repo inactivity**. Any manual run or commit re-arms them |
-| `run-now: command not found` on NAS | You're on an old image — re-pull (see "Updating the NAS") |
+| `run-now: command not found` on NAS | You're on an old image - re-pull (see "Updating the NAS") |
 
 ---
 
 ## Optional: shrink the fork later
 If the maintainer accepts your path/email/Telegram patches upstream, your fork reduces
-to just the `deploy/` overlay + CI — fewer merge conflicts. Ask Claude to prepare that
+to just the `deploy/` overlay + CI - fewer merge conflicts. Ask Claude to prepare that
 upstream PR when you're ready.

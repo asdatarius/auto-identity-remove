@@ -38,7 +38,7 @@ test('runGenericBrokers prunes broker-opened popups and leaves no pages open', a
   const N = 10;
   const brokers = Array.from({ length: N }, (_, i) => ({ name: 'Broker' + i, url: 'about:blank' }));
 
-  // Each broker opens a popup it never closes — mimics a _blank/consent window.
+  // Each broker opens a popup it never closes - mimics a _blank/consent window.
   const leakyProcessFn = async () => {
     await context.newPage();
     return { status: 'success', detail: 'simulated popup' };

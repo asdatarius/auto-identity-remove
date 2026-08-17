@@ -1,5 +1,5 @@
 /**
- * test/broker-runner-preview.test.js — WP4 --preview flag
+ * test/broker-runner-preview.test.js - WP4 --preview flag
  *
  * Verifies that processBroker, when configured with preview: true:
  *   - calls page.evaluate to extract field values

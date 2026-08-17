@@ -1,7 +1,7 @@
 /**
  * test/retry.test.js
  *
- * Tests for lib/retry.js — withRetry(fn, opts)
+ * Tests for lib/retry.js - withRetry(fn, opts)
  *
  * withRetry retries fn() on transient errors:
  *   - Error message includes 'Timeout'
@@ -38,7 +38,7 @@ function makeCounter(failTimes, error, successValue = 'ok') {
 
 // ─── Tests ────────────────────────────────────────────────────────────────────
 
-test('returns immediately on first success — no sleep called', async () => {
+test('returns immediately on first success - no sleep called', async () => {
   const { sleep, calls } = makeSleep();
   const fn = async () => 'result';
   const result = await withRetry(fn, { sleep });
@@ -46,7 +46,7 @@ test('returns immediately on first success — no sleep called', async () => {
   assert.equal(calls.length, 0);
 });
 
-test('retries twice then succeeds — sleep called with 500 then 1000', async () => {
+test('retries twice then succeeds - sleep called with 500 then 1000', async () => {
   const { sleep, calls } = makeSleep();
   const err = new Error('net::ERR_CONNECTION_RESET');
   const fn = makeCounter(2, err, 'success');
@@ -65,7 +65,7 @@ test('throws original error after 3 consecutive failures', async () => {
   );
 });
 
-test('non-retriable error (selector miss) throws immediately — no retries', async () => {
+test('non-retriable error (selector miss) throws immediately - no retries', async () => {
   const { sleep, calls } = makeSleep();
   const err = new Error('Selector not found: button#submit');
   const fn = makeCounter(3, err);
@@ -116,7 +116,7 @@ test('retries on 503 status error', async () => {
 
 test('retries on 504 status error', async () => {
   const { sleep, calls } = makeSleep();
-  const err = new Error('Gateway Timeout — status 504');
+  const err = new Error('Gateway Timeout - status 504');
   const fn = makeCounter(1, err, 'done');
   const result = await withRetry(fn, { sleep });
   assert.equal(result, 'done');
@@ -134,7 +134,7 @@ test('does NOT retry on 400/404 errors', async () => {
   assert.equal(calls.length, 0);
 });
 
-test('custom attempts: 5 honored — retries up to 4 times before throwing', async () => {
+test('custom attempts: 5 honored - retries up to 4 times before throwing', async () => {
   const { sleep, calls } = makeSleep();
   const err = new Error('Timeout waiting for selector');
   const fn = makeCounter(99, err);
@@ -146,7 +146,7 @@ test('custom attempts: 5 honored — retries up to 4 times before throwing', asy
   assert.deepEqual(calls, [500, 1000, 2000, 4000]);
 });
 
-test('custom baseMs honored — backoff uses provided base', async () => {
+test('custom baseMs honored - backoff uses provided base', async () => {
   const { sleep, calls } = makeSleep();
   const err = new Error('net::ERR_TIMED_OUT');
   const fn = makeCounter(2, err, 'ok');
@@ -154,7 +154,7 @@ test('custom baseMs honored — backoff uses provided base', async () => {
   assert.deepEqual(calls, [100, 200]);
 });
 
-test('default attempts is 3 — exactly 2 sleep calls on total failure', async () => {
+test('default attempts is 3 - exactly 2 sleep calls on total failure', async () => {
   const { sleep, calls } = makeSleep();
   const err = new Error('Timeout');
   const fn = makeCounter(99, err);

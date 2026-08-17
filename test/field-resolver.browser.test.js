@@ -10,24 +10,24 @@
  *   AIDR_BROWSER_TESTS=1 node --test test/field-resolver.browser.test.js
  *
  * These tests use real Playwright pages (`page.setContent(fixtureHTML)`) and
- * drive the REAL `fillForm` / `resolveField` code path end-to-end. No mocks —
+ * drive the REAL `fillForm` / `resolveField` code path end-to-end. No mocks -
  * the scorer is serialised through `page.evaluate` / `new Function` in a real
  * Chromium process, the `data-aidr-resolve` marker binding is genuine, and
  * `page.locator(...).inputValue()` reads actual DOM state.
  *
  * Scenario catalogue:
- *   1. Recovery — renamed email attr (email→email_address), no label. Resolver
+ *   1. Recovery - renamed email attr (email→email_address), no label. Resolver
  *      finds via type=email + autocomplete + placeholder.
- *   2. Recovery — renamed firstName attr (first_name→given_name), no label.
+ *   2. Recovery - renamed firstName attr (first_name→given_name), no label.
  *      Resolver finds via autocomplete=given-name + name.includes('given').
- *   3. Confirm-guard — email + confirm_email present; resolver must fill the
+ *   3. Confirm-guard - email + confirm_email present; resolver must fill the
  *      PRIMARY email field and leave confirm_email EMPTY.
- *   4. Asymmetric abstain (CASE A) — primary email has opaque attrs only
+ *   4. Asymmetric abstain (CASE A) - primary email has opaque attrs only
  *      (name="usr_em", no type/autocomplete/placeholder), readable confirm
  *      field present; resolver MUST abstain (both fields stay empty).
- *   5. Happy path — exact selector hits; resolver NOT invoked (fill succeeds
+ *   5. Happy path - exact selector hits; resolver NOT invoked (fill succeeds
  *      via the primary CSS path, not the semantic fallback).
- *   6. TOCTOU marker — data-aidr-resolve attribute is set during evaluate and
+ *   6. TOCTOU marker - data-aidr-resolve attribute is set during evaluate and
  *      cleared after fill; verify start→set→cleared lifecycle.
  */
 
@@ -39,7 +39,7 @@ const assert = require('node:assert/strict');
 const ENABLED = Boolean(process.env.AIDR_BROWSER_TESTS);
 
 // Wrap everything in a describe so that when AIDR_BROWSER_TESTS is unset the
-// whole suite registers as a single skipped block — no hard process.exit, no
+// whole suite registers as a single skipped block - no hard process.exit, no
 // worker-exit warning, no attempt to load playwright or a browser binary.
 describe('field-resolver browser integration', { skip: !ENABLED }, () => {
   // Deferred requires: loaded only when the suite actually runs (ENABLED=true).
@@ -83,7 +83,7 @@ describe('field-resolver browser integration', { skip: !ENABLED }, () => {
 
   // ─── Scenario 1: email field renamed email→email_address (no label) ─────────
 
-  test('S1: recovery — renamed email attr (email→email_address)', async () => {
+  test('S1: recovery - renamed email attr (email→email_address)', async () => {
     // Broker DOM change: renamed name="email" → name="email_address".
     // No <label>. Resolver should find it via: type=email(4) + autocomplete=email(3)
     // + placeholder contains "email"(2) = 9 ≥ MATCH_THRESHOLD(5).
@@ -109,7 +109,7 @@ describe('field-resolver browser integration', { skip: !ENABLED }, () => {
 
   // ─── Scenario 1b: firstName field renamed first_name→given_name ─────────────
 
-  test('S1b: recovery — renamed firstName attr (first_name→given_name)', async () => {
+  test('S1b: recovery - renamed firstName attr (first_name→given_name)', async () => {
     // Broker renamed first_name→given_name. No label.
     // Resolver: autocomplete=given-name(3) + name.includes('given')(2) = 5 ≥ threshold.
     const html = `
@@ -133,7 +133,7 @@ describe('field-resolver browser integration', { skip: !ENABLED }, () => {
 
   // ─── Scenario 2: confirm-guard ───────────────────────────────────────────────
 
-  test('S2: confirm-guard — email lands in primary, confirm_email stays empty', async () => {
+  test('S2: confirm-guard - email lands in primary, confirm_email stays empty', async () => {
     // Two fields: a real email field (primary selector MISSED so resolver fires)
     // and a confirm_email field. The confirm field must score 0 (negative guard).
     // Result: primary email filled; confirm_email EMPTY.
@@ -144,7 +144,7 @@ describe('field-resolver browser integration', { skip: !ENABLED }, () => {
         <input name="confirm_email" type="email" placeholder="Confirm email" id="cem">
       </form>`;
 
-    // selector uses old broker attr — misses both fields intentionally
+    // selector uses old broker attr - misses both fields intentionally
     const formFields = { 'input[name="email"]': 'user@example.com' };
     const page = await makePage(html);
     try {
@@ -154,7 +154,7 @@ describe('field-resolver browser integration', { skip: !ENABLED }, () => {
       assert.strictEqual(primary, 'user@example.com',
         `S2 FAIL: primary email="${primary}", expected "user@example.com"`);
       assert.strictEqual(confirm, '',
-        `S2 FAIL: confirm_email="${confirm}", expected "" (empty — confirm guard)`);
+        `S2 FAIL: confirm_email="${confirm}", expected "" (empty - confirm guard)`);
       console.log('S2 PASS: primary=', primary, '| confirm=', confirm, '(empty)');
     } finally {
       await page.close();
@@ -163,7 +163,7 @@ describe('field-resolver browser integration', { skip: !ENABLED }, () => {
 
   // ─── Scenario 3: asymmetric abstain (CASE A from review) ────────────────────
 
-  test('S3: asymmetric abstain — opaque primary, readable confirm → resolver abstains', async () => {
+  test('S3: asymmetric abstain - opaque primary, readable confirm → resolver abstains', async () => {
     // Primary field: name="usr_em", no type=email, no autocomplete, no placeholder.
     // Confirm field: name="confirm_email", type=email, placeholder="Confirm email".
     //
@@ -186,16 +186,16 @@ describe('field-resolver browser integration', { skip: !ENABLED }, () => {
       assert.strictEqual(primary, '',
         `S3 FAIL: usr_em="${primary}", expected "" (abstain)`);
       assert.strictEqual(confirm, '',
-        `S3 FAIL: confirm_email="${confirm}", expected "" (abstain — CASE A fail-safe)`);
+        `S3 FAIL: confirm_email="${confirm}", expected "" (abstain - CASE A fail-safe)`);
       console.log('S3 PASS: usr_em=', JSON.stringify(primary), '| confirm_email=', JSON.stringify(confirm));
     } finally {
       await page.close();
     }
   });
 
-  // ─── Scenario 4: happy path — exact selector hits, resolver not invoked ──────
+  // ─── Scenario 4: happy path - exact selector hits, resolver not invoked ──────
 
-  test('S4: happy path — exact selector fills without resolver', async () => {
+  test('S4: happy path - exact selector fills without resolver', async () => {
     // The exact CSS selector hits; fillForm() fills it directly.
     // To verify the resolver was NOT invoked we check: the data-aidr-resolve
     // marker is absent after the fill (the resolver sets+clears it; if it was
@@ -224,7 +224,7 @@ describe('field-resolver browser integration', { skip: !ENABLED }, () => {
 
   // ─── Scenario 5: TOCTOU marker lifecycle ────────────────────────────────────
 
-  test('S5: TOCTOU marker — data-aidr-resolve is set then cleared during fill', async () => {
+  test('S5: TOCTOU marker - data-aidr-resolve is set then cleared during fill', async () => {
     // Drive resolveField() directly (not via fillForm) so we can capture the
     // marker state at three points: before resolve, after resolve (before clear),
     // and after clearResolveMarker.

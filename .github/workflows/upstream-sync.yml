@@ -2,7 +2,7 @@ name: upstream-sync
 
 # Weekly: checks stephenlthorn/auto-identity-remove for new commits and, if there
 # are any, opens a PR that merges upstream into your main. You review it (resolving
-# conflicts in your patched files if needed) and merge — merging triggers
+# conflicts in your patched files if needed) and merge - merging triggers
 # build-and-push, which publishes the updated image.
 #
 # Requires (Settings → Actions → General → Workflow permissions):
@@ -10,9 +10,14 @@ name: upstream-sync
 #   - "Allow GitHub Actions to create and approve pull requests"  ✅
 # Because this repo is a FORK with an `upstream` remote, gh resolves the PR target to
 # the PARENT repo (stephenlthorn's) unless --repo pins it - so every gh call passes
-# --repo. The "Open PR" step uses a PAT in the SYNC_PAT secret (scoped to this repo,
-# Contents + Pull requests: write): PRs created with GITHUB_TOKEN don't trigger the
-# pull_request CI workflow, so the sync PR would show no checks.
+# --repo. The checkout and the "Open PR" step use a PAT in the SYNC_PAT secret
+# (scoped to this repo: Contents + Pull requests + Workflows: write) rather than
+# GITHUB_TOKEN, because:
+#   - GitHub refuses a GITHUB_TOKEN push that touches .github/workflows/* ("refusing
+#     to allow a GitHub App to create or update workflow"), and upstream edits its
+#     workflows now and then - so the merge branch could never be pushed;
+#   - PRs created with GITHUB_TOKEN don't trigger the pull_request CI workflow, so
+#     the sync PR would show no checks.
 
 on:
   schedule:
@@ -33,6 +38,8 @@ jobs:
       - uses: actions/checkout@v5
         with:
           fetch-depth: 0
+          # Persisted for the later `git push` (see header: workflow-file changes).
+          token: ${{ secrets.SYNC_PAT }}
 
       - name: Configure git + fetch upstream
         run: |
@@ -53,7 +60,7 @@ jobs:
 
       # `gh pr view <branch>` would also match a MERGED/CLOSED PR (it resolves the
       # most recently associated one), which would make every future sync silently
-      # skip PR creation — so count open PRs explicitly.
+      # skip PR creation - so count open PRs explicitly.
       - name: Check for an open sync PR
         if: steps.check.outputs.changed == 'true'
         id: pr
@@ -80,7 +87,7 @@ jobs:
             echo "conflict=true" >> "$GITHUB_OUTPUT"
             # Keep conflict markers in the tree so the PR shows exactly what to resolve.
             git add -A
-            git commit -m "merge upstream/main (CONFLICTS — resolve before merging)"
+            git commit -m "merge upstream/main (CONFLICTS - resolve before merging)"
           fi
           git push -f origin "$BRANCH"
           echo "branch=$BRANCH" >> "$GITHUB_OUTPUT"
@@ -90,9 +97,8 @@ jobs:
         env:
           # Without --repo, gh infers the PR target from the git remotes and - because
           # this repo is a fork with an `upstream` remote - picks the parent repo, where
-          # neither token can create PRs ("Resource not accessible"). SYNC_PAT (Contents +
-          # Pull requests: write, scoped to this repo) rather than GITHUB_TOKEN so the
-          # created PR triggers the pull_request CI workflow.
+          # neither token can create PRs ("Resource not accessible"). SYNC_PAT rather
+          # than GITHUB_TOKEN so the created PR triggers the pull_request CI workflow.
           GH_TOKEN: ${{ secrets.SYNC_PAT }}
         run: |
           BODY="Automated weekly upstream sync.
@@ -101,9 +107,9 @@ jobs:
 
           If conflicts is \`true\`, check out the \`upstream-sync\` branch, resolve the
           markers (your patched files: lib/config.js, watcher.js, lib/notify.js), then
-          push. NOTE: a conflicted PR must not be merged as-is — the markers would
+          push. NOTE: a conflicted PR must not be merged as-is - the markers would
           ship in the published image. Merging this PR triggers build-and-push and
-          publishes a new image. Review the upstream diff before merging — this tool
+          publishes a new image. Review the upstream diff before merging - this tool
           handles real PII."
           gh pr create --repo "$GITHUB_REPOSITORY" --base main --head "${{ steps.merge.outputs.branch }}" \
             --title "Upstream sync" --body "$BODY"

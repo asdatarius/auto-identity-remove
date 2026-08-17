@@ -2,7 +2,7 @@
 
 **Date:** 2026-05-18
 **Status:** Ready for implementation
-**Audience:** Sonnet subagents — each Work Package (WP) is self-contained and can be implemented by an agent with no prior context.
+**Audience:** Sonnet subagents - each Work Package (WP) is self-contained and can be implemented by an agent with no prior context.
 
 ---
 
@@ -26,7 +26,7 @@ This roadmap covers **every remaining item**.
 | `brokers.js` | ~350 | ~31 explicit broker definitions |
 | `generic-runner.js` | ~320 | Heuristic handler for ~500 generic brokers |
 | `setup.js` | ~225 | Interactive setup + launchd scheduling |
-| `data/*.json` | — | Markup (494) + BADBOOL (27) datasets |
+| `data/*.json` | - | Markup (494) + BADBOOL (27) datasets |
 
 No test suite exists. `package.json` has `"os": ["darwin"]` (blocks non-mac `npm install`).
 
@@ -40,14 +40,14 @@ No test suite exists. `package.json` has `"os": ["darwin"]` (blocks non-mac `npm
 | HN (author, lolpython) | Forms submit but email confirmation never clicked | WP4 |
 | HN (lolpython) | No proof generic submissions actually work | WP5 |
 | HN (pards) | Fails on Canadian postal codes / non-US addresses | WP6 |
-| HN (lolpython — "vibe coded?") | No transparency on what's tested vs heuristic | WP7 |
+| HN (lolpython - "vibe coded?") | No transparency on what's tested vs heuristic | WP7 |
 
 ---
 
-## Phase 0 — Modularization (REQUIRED FIRST, single agent, no parallelism)
+## Phase 0 - Modularization (REQUIRED FIRST, single agent, no parallelism)
 
 **Why:** `watcher.js` is ~470 lines and every WP below needs to touch it. Without
-extraction the WPs cannot run in parallel — they would constantly collide. This
+extraction the WPs cannot run in parallel - they would constantly collide. This
 phase also satisfies the repo's "files under 500 lines / many small files" rule.
 
 **Agent:** 1 subagent, runs alone, blocks all of Phase 1.
@@ -56,15 +56,15 @@ phase also satisfies the repo's "files under 500 lines / many small files" rule.
 
 Create:
 
-- `lib/config.js` — exports `loadConfig()`, `loadState()`, `saveState()`,
+- `lib/config.js` - exports `loadConfig()`, `loadState()`, `saveState()`,
   `lastOptOutDaysAgo()`, `recordSuccess()`, `RECHECK_DAYS`
-- `lib/logger.js` — exports `results`, `logResult()`, the bucket map, `ICONS`
-- `lib/notify.js` — exports `sendText()`, `macNotify()`, `openInBrowser()`
+- `lib/logger.js` - exports `results`, `logResult()`, the bucket map, `ICONS`
+- `lib/notify.js` - exports `sendText()`, `macNotify()`, `openInBrowser()`
   (keep current macOS impl as-is here; WP2 will generalize this module)
-- `lib/captcha.js` — exports `solveRecaptcha()`, `detectAndSolveCaptcha()`
-- `lib/forms.js` — exports `fillForm()`, `findListingUrl()`
-- `lib/broker-runner.js` — exports `processBroker()`
-- `lib/platform.js` — **new**, exports `getPlatform()` → `'macos'|'linux'|'windows'`
+- `lib/captcha.js` - exports `solveRecaptcha()`, `detectAndSolveCaptcha()`
+- `lib/forms.js` - exports `fillForm()`, `findListingUrl()`
+- `lib/broker-runner.js` - exports `processBroker()`
+- `lib/platform.js` - **new**, exports `getPlatform()` → `'macos'|'linux'|'windows'`
   via `process.platform` mapping. (Empty utility WP1/WP2 build on.)
 - `watcher.js` becomes a thin orchestrator (`main()` + arg parsing) under 120 lines.
 
@@ -72,15 +72,15 @@ Create:
 - `node watcher.js --dry-run` produces identical output to before (diff the console log on 5 brokers)
 - No file in `lib/` exceeds 300 lines
 - `require()` graph has no cycles
-- `generic-runner.js` updated to import the shared `logger`/`config` instead of receiving them as callbacks **only if trivial** — otherwise leave its callback signature and document it
+- `generic-runner.js` updated to import the shared `logger`/`config` instead of receiving them as callbacks **only if trivial** - otherwise leave its callback signature and document it
 
-**Tests:** add `node --test` (built-in test runner — no new deps). Write
+**Tests:** add `node --test` (built-in test runner - no new deps). Write
 `test/config.test.js` and `test/logger.test.js` covering pure logic
 (`lastOptOutDaysAgo`, bucket routing). Add `"test": "node --test"` to package.json.
 
 ---
 
-## Phase 0 — Risk resolution (DONE, post-modularization)
+## Phase 0 - Risk resolution (DONE, post-modularization)
 
 The three risks the Phase 0 agent flagged are **fixed** (commit after `cdb1754`):
 
@@ -92,24 +92,24 @@ The three risks the Phase 0 agent flagged are **fixed** (commit after `cdb1754`)
    banner dismissal) so it never clicks "Do Not Sell" or submits forms in
    dry-run. Previously `--dry-run` silently submitted ~470 generic forms.
    `runGenericBrokers(...)` now takes a final `{ dryRun }` opts arg.
-3. **Injected-config signatures (non-breaking, by design)** — these stand:
-   - `sendText(msg, notify)` — notify config injected (lib/notify.js)
+3. **Injected-config signatures (non-breaking, by design)** - these stand:
+   - `sendText(msg, notify)` - notify config injected (lib/notify.js)
    - `solveRecaptcha(page, capsolver)` / `detectAndSolveCaptcha(page, capsolver)`
    - `lib/broker-runner.js` `configure({ dryRun, person, capsolver })` then
      `processBroker` / `sendEmailOptOuts`.
    **Phase 1 agents touching these MUST keep the injected-arg signature** (do
-   not reintroduce module-level closures — it creates circular requires).
+   not reintroduce module-level closures - it creates circular requires).
 
 Test suite is 19/19 green. `--dry-run` verified to leave `state.json` byte-identical.
 
-## Phase 1 — Parallel Work Packages
+## Phase 1 - Parallel Work Packages
 
-After Phase 0 merges, WP1–WP7 touch mostly disjoint files and can run as
+After Phase 0 merges, WP1-WP7 touch mostly disjoint files and can run as
 **concurrent subagents**. Conflict notes are called out per WP.
 
 ---
 
-### WP1 — Cross-platform scheduling
+### WP1 - Cross-platform scheduling
 
 **Closes:** GH #1, HN (ramon156, LatencyKills)
 
@@ -140,19 +140,19 @@ After Phase 0 merges, WP1–WP7 touch mostly disjoint files and can run as
 - On Windows: prints working `schtasks` command; never throws
 - `npm install` succeeds on Linux (CI: `node -e "require('./lib/scheduler')"` on ubuntu)
 
-**Tests:** `test/scheduler.test.js` — mock `child_process.execSync` and
+**Tests:** `test/scheduler.test.js` - mock `child_process.execSync` and
 `os.platform`; assert correct command string per platform. No real scheduler installs.
 
 **Conflict note:** Touches `setup.js` (also WP6). WP1 owns the *scheduling*
 section; WP6 owns the *prompts* section. Coordinate by editing different
-functions — WP1 should wrap scheduling in `installSchedule()` so WP6's prompt
+functions - WP1 should wrap scheduling in `installSchedule()` so WP6's prompt
 edits stay above it.
 
 ---
 
-### WP2 — Cross-platform notifications + email opt-out
+### WP2 - Cross-platform notifications + email opt-out
 
-**Closes:** HN (pards, nixass) — "assumes Apple Mail / iMessage"
+**Closes:** HN (pards, nixass) - "assumes Apple Mail / iMessage"
 
 **Problem:** `sendText()` (iMessage via AppleScript), `macNotify()` (osascript),
 and `sendEmailOptOuts()` (Mail.app via AppleScript) are hard macOS dependencies
@@ -168,10 +168,10 @@ skipped on non-mac with no user-visible fallback.
      - macOS → existing iMessage + osascript (unchanged default)
      - Linux → `notify-send` if present (desktop toast)
      - all platforms → if `config.notify.webhook` set, POST the summary
-       (works with ntfy.sh / Slack / Discord) — most portable option
+       (works with ntfy.sh / Slack / Discord) - most portable option
      - always → print summary to console (already happens)
    - Never throw; each channel is best-effort.
-2. New `lib/email.js` — `sendOptOutEmails(brokers, config)`:
+2. New `lib/email.js` - `sendOptOutEmails(brokers, config)`:
    - macOS + no SMTP config → existing Mail.app path
    - if `config.email.smtp` configured → send via `nodemailer`
      (**add dep**; gate behind config so it's optional)
@@ -186,21 +186,21 @@ skipped on non-mac with no user-visible fallback.
 - macOS default behavior unchanged when no webhook/SMTP configured
 - With `notify.webhook` set, summary POSTs successfully (test against a mock server)
 - On Linux with no config, run completes, prints summary, email brokers appear
-  in the manual list with addresses — no silent skip, no crash
+  in the manual list with addresses - no silent skip, no crash
 - `nodemailer` only loaded when SMTP configured (lazy `require`)
 
 **Tests:** `test/notify.test.js` (mock fetch + platform), `test/email.test.js`
 (mock nodemailer + Mail.app branch). 80% line coverage on both modules.
 
 **Conflict note:** Owns `lib/notify.js` and email logic. Phase 0 created
-`lib/notify.js` with the macOS impl — WP2 expands it. No overlap with WP1's
+`lib/notify.js` with the macOS impl - WP2 expands it. No overlap with WP1's
 `lib/scheduler.js`.
 
 ---
 
-### WP3 — Dead / stale URL handling
+### WP3 - Dead / stale URL handling
 
-**Closes:** HN (pards) — "got tons of 404s"
+**Closes:** HN (pards) - "got tons of 404s"
 
 **Problem:** Stale Markup URLs return 4xx/5xx. They currently log as `error`,
 polluting the summary and obscuring real failures. No mechanism prunes them.
@@ -226,18 +226,18 @@ new `data/dead-urls.json`, `README.md`
 - Hosts in `data/dead-urls.json` are skipped without a network request
 - `node scripts/prune-dead.js` run twice produces no duplicate entries
 
-**Tests:** `test/dead-url.test.js` — mock a Playwright page returning 404 /
+**Tests:** `test/dead-url.test.js` - mock a Playwright page returning 404 /
 throwing connection errors; assert `dead` classification. Unit-test
 `prune-dead` aggregation with fixture logs.
 
-**Conflict note:** Touches `lib/logger.js` (bucket addition) — coordinate with
+**Conflict note:** Touches `lib/logger.js` (bucket addition) - coordinate with
 WP4 which also adds a bucket. Both should add their bucket via a single
 `addBucket(name, icon)` helper if Phase 0 didn't provide one; otherwise append
 to the map and keep edits to adjacent lines.
 
 ---
 
-### WP4 — Email-confirmation tracking
+### WP4 - Email-confirmation tracking
 
 **Closes:** HN (author's own ask, lolpython)
 
@@ -256,7 +256,7 @@ is incomplete.
 2. If matched → log status `pending_confirm` (new bucket, `📧` icon) instead of
    `success`. Still call `recordSuccess()` BUT store
    `{ pendingConfirmation: true }` in the state entry so re-check logic knows it
-   was only partially completed (do **not** treat as fully done — re-attempt
+   was only partially completed (do **not** treat as fully done - re-attempt
    next run if still pending after 14 days; add that window as a constant).
 3. Summary: dedicated section "📧 Awaiting email confirmation (check inbox): …"
    listing broker names. Include count in the iMessage/webhook short summary.
@@ -267,24 +267,24 @@ is incomplete.
 - Summary lists pending-confirmation brokers in their own section
 - A pending broker still pending after 14 days is re-attempted (unit-test the date logic)
 
-**Tests:** `test/confirm-detection.test.js` — table of result-page snippets →
+**Tests:** `test/confirm-detection.test.js` - table of result-page snippets →
 expected classification (positive + negative cases). Date-window logic unit-tested.
 
 **Conflict note:** Adds a bucket to `lib/logger.js` (see WP3 note). Touches
 `generic-runner.js` (also WP3). WP3 owns the *navigation/dead* path; WP4 owns the
-*post-submit* path — different functions/regions of the file. Land WP3 first if
+*post-submit* path - different functions/regions of the file. Land WP3 first if
 possible, then WP4 rebases.
 
 ---
 
-### WP5 — Verify mode (`--verify`)
+### WP5 - Verify mode (`--verify`)
 
-**Closes:** HN (lolpython) — "how do you know any of this works?"
+**Closes:** HN (lolpython) - "how do you know any of this works?"
 
 **Problem:** No way to confirm an opt-out actually took effect.
 
 **Files:** new `lib/verifier.js`, `watcher.js` (arg + mode dispatch),
-`brokers.js` (read-only — uses existing `searchUrl`/`listingPattern`), `README.md`
+`brokers.js` (read-only - uses existing `searchUrl`/`listingPattern`), `README.md`
 
 **Approach:**
 1. New mode: `node watcher.js --verify`. Does **not** submit anything.
@@ -293,7 +293,7 @@ possible, then WP4 rebases.
    re-run `findListingUrl()`. If a listing is **still found** → flag
    `STILL LISTED (opt-out may have failed or data re-added)`. If not found →
    `verified clear`.
-3. Brokers without a searchable signal → `unverifiable (no signal)` — be honest,
+3. Brokers without a searchable signal → `unverifiable (no signal)` - be honest,
    don't fake a result.
 4. Write `logs/verify-<date>.json` and print a three-column report:
    verified clear / still listed / unverifiable. Send summary via `notify()`.
@@ -305,19 +305,19 @@ possible, then WP4 rebases.
 - non-search brokers reported as `unverifiable`, not silently dropped
 - Honest framing in README: explains this is best-effort, not proof of deletion
 
-**Tests:** `test/verifier.test.js` — mock `findListingUrl`; assert the three
+**Tests:** `test/verifier.test.js` - mock `findListingUrl`; assert the three
 classifications and that no write/submit occurs (spy on `saveState`,
 `btn.click`).
 
 **Conflict note:** Almost fully additive (new `lib/verifier.js`). Only shared
-edit is `watcher.js` arg parsing — coordinate with WP1/WP6 (also edit setup/args).
+edit is `watcher.js` arg parsing - coordinate with WP1/WP6 (also edit setup/args).
 Keep the change to a single `if (argv.includes('--verify'))` branch in `main()`.
 
 ---
 
-### WP6 — International address support
+### WP6 - International address support
 
-**Closes:** HN (pards) — Canadian postal code failure
+**Closes:** HN (pards) - Canadian postal code failure
 
 **Problem:** Schema assumes US `state` (2-letter) + `zip`. Non-US users
 (Canada/UK/AU) can't represent province/postcode; form-filler has no
@@ -352,7 +352,7 @@ province/postcode selectors.
 - `usOnly` brokers skipped for non-US users with explicit log line
 
 **Tests:** `test/forms-intl.test.js` (synthetic DOM via Playwright or jsdom-lite
-— mock locators), `test/setup-intl.test.js` (mock readline; assert branch).
+- mock locators), `test/setup-intl.test.js` (mock readline; assert branch).
 
 **Conflict note:** Touches `setup.js` (WP1 also). WP6 owns the *personal-info
 prompt* block (top of `main()`), WP1 owns the *scheduling* block (bottom). Edit
@@ -361,9 +361,9 @@ Phase 0; safe to parallelize with WP1 if regions respected.
 
 ---
 
-### WP7 — Transparency: STATUS table + honest summary
+### WP7 - Transparency: STATUS table + honest summary
 
-**Closes:** HN (lolpython — "is this vibe coded? does it work?")
+**Closes:** HN (lolpython - "is this vibe coded? does it work?")
 
 **Problem:** Users can't tell which of the 500+ brokers are explicitly tested vs
 heuristic best-effort. Erodes trust.
@@ -371,7 +371,7 @@ heuristic best-effort. Erodes trust.
 **Files:** new `STATUS.md`, `README.md`, `lib/logger.js` (summary wording only)
 
 **Approach:**
-1. `STATUS.md`: table of the ~31 explicit brokers with a `Confidence` column —
+1. `STATUS.md`: table of the ~31 explicit brokers with a `Confidence` column -
    `verified` (manually tested, selectors confirmed) vs `untested` (defined but
    not hand-verified). Be conservative: only mark `verified` ones the maintainer
    has actually confirmed; default everything else to `untested`. Add a section
@@ -393,7 +393,7 @@ heuristic best-effort. Erodes trust.
 `test/logger.test.js` that the summary contains the disclaimer string.
 
 **Conflict note:** Only code touch is summary strings in `lib/logger.js`
-(shared with WP3/WP4 bucket edits). Smallest footprint — land **last** so it
+(shared with WP3/WP4 bucket edits). Smallest footprint - land **last** so it
 phrases the summary around whatever buckets WP3/WP4 added.
 
 ---
@@ -408,13 +408,13 @@ Phase 1 (parallel subagents)
    ├─ WP1  scheduler        (setup.js bottom, lib/scheduler.js)
    ├─ WP2  notify/email     (lib/notify.js, lib/email.js)
    ├─ WP3  dead URLs        (generic-runner.js, lib/logger.js, prune script)
-   ├─ WP5  verify mode      (lib/verifier.js — additive)
+   ├─ WP5  verify mode      (lib/verifier.js - additive)
    └─ WP6  international     (setup.js top, lib/forms.js)
         │
         ▼
 Phase 2 (depends on WP3 buckets landing)
    ├─ WP4  email confirm    (rebase after WP3's logger change)
-   └─ WP7  transparency     (last — phrases summary around final buckets)
+   └─ WP7  transparency     (last - phrases summary around final buckets)
 ```
 
 **Dispatch guidance for the orchestrator:**
@@ -424,17 +424,17 @@ Phase 2 (depends on WP3 buckets landing)
 - Phase 2: WP4 then WP7 sequentially (both edit `lib/logger.js` summary region).
 - Each subagent: write tests first (repo rule = TDD, 80% coverage), keep files
   <300 lines, no new deps except `nodemailer` (WP2, lazy-loaded), commit with a
-  `feat:`/`fix:` message referencing the HN/GH item, do **not** push — the
+  `feat:`/`fix:` message referencing the HN/GH item, do **not** push - the
   orchestrator reviews and pushes once per phase.
 - After each phase: run `node --test`, run `node watcher.js --dry-run` on a
   5-broker subset, eyeball the summary, then push.
 
 ## Out of scope (explicitly not doing)
 
-- Data-poisoning / fake-record injection (HN himata4113) — legally/ethically dubious, conflicts with project's honest-opt-out framing.
+- Data-poisoning / fake-record injection (HN himata4113) - legally/ethically dubious, conflicts with project's honest-opt-out framing.
 - Bundling a paid proxy-email service.
-- Guaranteeing deletion / legal escalation (CCPA complaints) — `--verify` is the honest ceiling here.
-- Per-broker bespoke flows for all 500 generic sites — the long tail stays heuristic by design; WP7 documents this honestly.
+- Guaranteeing deletion / legal escalation (CCPA complaints) - `--verify` is the honest ceiling here.
+- Per-broker bespoke flows for all 500 generic sites - the long tail stays heuristic by design; WP7 documents this honestly.
 
 ## One-line PR/issue replies (for the maintainer)
 

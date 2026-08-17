@@ -1,6 +1,6 @@
 # auto-identity-remove (NAS / Portainer edition)
 
-Automated **data-broker opt-out runner** — removes your (and your family's) personal
+Automated **data-broker opt-out runner** - removes your (and your family's) personal
 info from 500+ people-search and data-broker sites on a monthly schedule, headless.
 This image is a **container-ready build** of
 [stephenlthorn/auto-identity-remove](https://github.com/stephenlthorn/auto-identity-remove),
@@ -58,7 +58,7 @@ Holds everything that must persist (mount one folder):
 | File | Purpose |
 |------|---------|
 | `config.json` | your details (you provide this) |
-| `state.json`  | opt-out history — **keep it**; stops re-submitting every run |
+| `state.json`  | opt-out history - **keep it**; stops re-submitting every run |
 | `logs/`       | per-run JSON logs (+ `--snapshot` screenshots) |
 | `profile/`    | browser session |
 | `serp-history.json` | search-result scan history (`--serp-scan` / `--serp-watch`) |
@@ -78,7 +78,7 @@ Holds everything that must persist (mount one folder):
 ## Notifications (set in `config.json`)
 - **Discord:** webhook URL **with `/slack` appended**
 - **Telegram:** `notify.telegram = { botToken, chatId }`
-- **ntfy:** `https://ntfy.sh/<your-topic>` — invent a long random topic; anyone who knows it can read it
+- **ntfy:** `https://ntfy.sh/<your-topic>` - invent a long random topic; anyone who knows it can read it
 
 ## Optional features (config blocks, all default-off)
 - **Masked-email relay** (`relay`): submit opt-outs with per-person SimpleLogin aliases so brokers never get your real address
@@ -87,12 +87,12 @@ Holds everything that must persist (mount one folder):
 - **Breach check** (`hibp.apiKey`): cross-reference Have-I-Been-Pwned breaches
 
 ## Tags
-- `latest` — current build
-- `1.0.x` — pinned versions (1.0.6+: upstream relay/allowlist/encryption/HIBP/score features)
-- `YYYYMMDD` (e.g. `20260728`) — build date, for pinning to a known-good day
+- `latest` - current build
+- `1.0.x` - pinned versions (1.0.6+: upstream relay/allowlist/encryption/HIBP/score features)
+- `YYYYMMDD` (e.g. `20260728`) - build date, for pinning to a known-good day
 
 ## Notes
 - **"Submitted" ≠ "deleted."** Use `run-now --verify` to spot-check.
-- Don't expose this container to the internet — it's outbound-only and holds PII in `/data`.
+- Don't expose this container to the internet - it's outbound-only and holds PII in `/data`.
 - Image is ~2 GB (bundled Chromium). The monthly run itself is short.
 - License: MIT. Built on [stephenlthorn/auto-identity-remove](https://github.com/stephenlthorn/auto-identity-remove).

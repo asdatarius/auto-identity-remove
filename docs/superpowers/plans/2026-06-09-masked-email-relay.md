@@ -1001,7 +1001,7 @@ const lock = require('./lib/lock');
 
     brokerRunner.configure({ dryRun: DRY_RUN, preview: PREVIEW, person, capsolver: config.capsolver, noCapsolver: NO_CAPSOLVER, snapshot: SNAPSHOT, personCount: persons.length });
 
-    // Email opt-outs (no browser needed — skipped in verify mode)
+    // Email opt-outs (no browser needed - skipped in verify mode)
     if (!VERIFY) {
       console.log('── Email opt-outs ─────────────────────────────────────────');
       await sendOptOutEmails(brokers, config);
@@ -1068,7 +1068,7 @@ Files:
 
 ```json
   "email": {
-    "_comment": "SMTP config for sending opt-out emails. Required — without this, email brokers are logged as 'manual'. Gmail: host=smtp.gmail.com, port=587, use an App Password (myaccount.google.com/apppasswords). Outlook/Office365: host=smtp-mail.outlook.com, port=587.",
+    "_comment": "SMTP config for sending opt-out emails. Required - without this, email brokers are logged as 'manual'. Gmail: host=smtp.gmail.com, port=587, use an App Password (myaccount.google.com/apppasswords). Outlook/Office365: host=smtp-mail.outlook.com, port=587.",
     "smtp": {
       "host": "smtp.gmail.com",
       "port": 587,

@@ -4,7 +4,7 @@
  * Tests the usOnly + non-US skip guard in processBroker().
  *
  * Uses a mock logResult to capture what was logged without touching disk or
- * Playwright. processBroker is exercised only far enough to reach the guard —
+ * Playwright. processBroker is exercised only far enough to reach the guard -
  * the RECHECK_DAYS check runs first so we make the broker appear "due" by
  * ensuring lastOptOutDaysAgo returns Infinity for the test broker name.
  */
@@ -18,7 +18,7 @@ const assert = require('node:assert/strict');
 const configMock = {
   RECHECK_DAYS: 90,
   CONFIRM_RECHECK_DAYS: 14,
-  lastOptOutDaysAgo: () => Infinity,  // always "due" — won't hit recheck skip
+  lastOptOutDaysAgo: () => Infinity,  // always "due" - won't hit recheck skip
   shouldSkip: () => null,             // never skip via state in these tests
   isPendingConfirmation: () => false,
   recordSuccess: () => {},
@@ -123,11 +123,11 @@ test('usOnly broker is NOT skipped for a US user (falls through to normal flow)'
   clearLog();
   configure({ dryRun: false, person: { country: 'US' }, capsolver: null });
   // For a US user the guard does NOT fire.  processBroker will try to open a
-  // page and fail (context is null) — that's expected, we just verify the guard
+  // page and fail (context is null) - that's expected, we just verify the guard
   // did not produce a skip log entry.
   try {
     await processBroker(null, US_ONLY_BROKER);
-  } catch (_) { /* expected — null context */ }
+  } catch (_) { /* expected - null context */ }
 
   const skipEntry = logged.find(
     l => l.name === 'TestUSOnlyBroker' && l.status === 'skipped' && l.detail?.includes('US-only'),

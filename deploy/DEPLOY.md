@@ -11,7 +11,7 @@ itself** (no host cron, no Docker socket).
 | State persistence | mounts `state.json` as a **single file** → atomic save fails with `EBUSY` in Docker, so opt-out history never persists | everything lives under one mounted **directory** `/data`, where saves work |
 | Scheduling | host scheduler (launchd/systemd/cron) runs it monthly | `supercronic` inside the container fires it on `CRON_SCHEDULE` |
 | NAS file permissions | runs as fixed uid 1001 | `PUID`/`PGID` env, ownership fixed at startup via `gosu` |
-| Notifications | iMessage (macOS) | webhook (ntfy/Slack/Discord) — set in `config.json` |
+| Notifications | iMessage (macOS) | webhook (ntfy/Slack/Discord) - set in `config.json` |
 
 Two tiny, backward-compatible source patches make this work: `lib/config.js` and
 `watcher.js` now read `AIDR_CONFIG` / `AIDR_STATE` / `AIDR_LOG_DIR` env vars
@@ -51,7 +51,7 @@ cp deploy/config.sample.json /volume1/docker/auto-identity-remove/config.json
 # then edit it with your real name/state/email + webhook
 ```
 
-Note the folder's owner uid/gid (`ls -n`) — you'll put those in `PUID`/`PGID`.
+Note the folder's owner uid/gid (`ls -n`) - you'll put those in `PUID`/`PGID`.
 On Synology a share is often `1026:100`; plain Linux is often `1000:1000`.
 
 ---
@@ -59,7 +59,7 @@ On Synology a share is often `1026:100`; plain Linux is often `1000:1000`.
 ## 3. Deploy the Portainer stack
 
 Portainer → **Stacks → Add stack → Web editor**, paste `deploy/docker-compose.yml`,
-edit the three marked spots (`TZ`, `PUID`/`PGID`, volume path — the image is
+edit the three marked spots (`TZ`, `PUID`/`PGID`, volume path - the image is
 already set to `asdatarius/auto-identity-remove:latest`), and deploy.
 
 The container starts, idles, and runs `watcher.js` on the schedule. Watch
@@ -67,7 +67,7 @@ The container starts, idles, and runs `watcher.js` on the schedule. Watch
 
 ---
 
-## 4. First run — do a dry run before the real one
+## 4. First run - do a dry run before the real one
 
 Before trusting the monthly job, run once with no submissions to confirm config
 + networking + headless Chromium work. Easiest is a throwaway container
@@ -100,7 +100,7 @@ if you don't use CapSolver and don't want CAPTCHA sites attempted).
 | `PUID` / `PGID` | `1000` | uid/gid that owns the `/data` volume |
 
 Files that appear under your NAS volume after a run:
-`config.json` (yours), `state.json` (opt-out history — **keep this**),
+`config.json` (yours), `state.json` (opt-out history - **keep this**),
 `logs/run-YYYY-MM-DD.json`, `profile/` (browser session).
 
 ---
@@ -121,7 +121,7 @@ Then in Portainer: the stack → **Pull and redeploy** (or **Recreate** with
 
 - **Image size** ~2 GB (the Playwright base ships Chromium for both arches). Fine
   for a NAS; the monthly run is short.
-- **"Submitted" ≠ "deleted"** — see the upstream README. Use `WATCHER_ARGS=--verify`
+- **"Submitted" ≠ "deleted"** - see the upstream README. Use `WATCHER_ARGS=--verify`
   occasionally to spot-check.
 - **Don't expose this container to the internet.** It holds personal data in
   `/data/config.json` and does outbound-only work; it needs no inbound ports.

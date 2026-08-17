@@ -1043,7 +1043,7 @@ test('config.example.json documents an optional hibp.apiKey', () => {
 
 ```json
   "capsolver": {
-    "_comment": "Sign up free at capsolver.com — pay-as-you-go, costs pennies/month for this use case",
+    "_comment": "Sign up free at capsolver.com - pay-as-you-go, costs pennies/month for this use case",
     "apiKey": "CAP-YOUR_KEY_HERE"
   },
 ```
@@ -1052,7 +1052,7 @@ test('config.example.json documents an optional hibp.apiKey', () => {
 
 ```json
   "capsolver": {
-    "_comment": "Sign up free at capsolver.com — pay-as-you-go, costs pennies/month for this use case",
+    "_comment": "Sign up free at capsolver.com - pay-as-you-go, costs pennies/month for this use case",
     "apiKey": "CAP-YOUR_KEY_HERE"
   },
 

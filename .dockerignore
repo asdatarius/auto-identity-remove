@@ -1,10 +1,29 @@
-node_modules
-logs
-*.log
-state.json
+**/node_modules
 .git
 .github
-config.json
-*.md
-test/
+.claude
+**/*.md
+**/test/
 docs/
+**/*.test.js
+
+# Anything below can carry PII or secrets. `COPY . .` runs after npm ci, so an
+# entry missing here is baked into an image layer and travels with the image if
+# it is ever pushed to a registry or shared as a tar.
+config.json
+config.json.enc
+state.json
+state.json.bak
+state.json.tmp
+state.json.lock
+inbox/
+logs
+logs/
+*.log
+data/serp-history.json
+data/exposure-history.json
+data/exposure-history.json.bak
+serp-history.json
+.env
+.env.*
+.DS_Store

@@ -1,7 +1,7 @@
 /**
  * test/noise.test.js
  *
- * Tests for lib/noise.js — bogus person generator for --pollute mode.
+ * Tests for lib/noise.js - bogus person generator for --pollute mode.
  */
 
 const { test } = require('node:test');

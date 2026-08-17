@@ -9,20 +9,20 @@
  * forms-bugs.test.js for the established mock pattern).
  *
  * Coverage targets:
- *   1. deriveIntent() — maps selector+value combos to the right intent.
- *   2. resolveField() — correct candidate wins above MATCH_THRESHOLD.
- *   3. resolveField() — abstains when score is below threshold.
- *   4. resolveField() — abstains on tie (ambiguous candidates).
- *   5. resolveField() — returns null for generic intent.
- *   6. fillForm() secondary fallback — fires for exact selectors that miss
+ *   1. deriveIntent() - maps selector+value combos to the right intent.
+ *   2. resolveField() - correct candidate wins above MATCH_THRESHOLD.
+ *   3. resolveField() - abstains when score is below threshold.
+ *   4. resolveField() - abstains on tie (ambiguous candidates).
+ *   5. resolveField() - returns null for generic intent.
+ *   6. fillForm() secondary fallback - fires for exact selectors that miss
  *      (input[name="email"]) which the primary getByLabel path never covers.
- *   7. fillForm() secondary fallback — fires for ambiguous-keyword selectors
+ *   7. fillForm() secondary fallback - fires for ambiguous-keyword selectors
  *      (input[name*="name"]) that the primary path kill-switches.
- *   8. fillForm() happy path — exact selector hit is unchanged (no resolver).
- *   9. fillForm() no double-fill — primary fallback success blocks resolver.
- *  10. Fields with no <label for>, only placeholder — resolver recovers.
- *  11. Fields with only aria-label — resolver recovers.
- *  12. Renamed name attribute (broker DOM change) — resolver still matches.
+ *   8. fillForm() happy path - exact selector hit is unchanged (no resolver).
+ *   9. fillForm() no double-fill - primary fallback success blocks resolver.
+ *  10. Fields with no <label for>, only placeholder - resolver recovers.
+ *  11. Fields with only aria-label - resolver recovers.
+ *  12. Renamed name attribute (broker DOM change) - resolver still matches.
  */
 
 'use strict';
@@ -78,13 +78,13 @@ function makeEl(overrides = {}) {
  *     so .fill() hits the EXACT element that was tagged, not an index.
  *
  * `mutate` (optional) is a callback invoked ONCE, AFTER the scoring evaluate
- * but BEFORE the locator resolves — it lets a test model a DOM mutation between
+ * but BEFORE the locator resolves - it lets a test model a DOM mutation between
  * the score round-trip and the use round-trip (the TOCTOU window). A faithful
  * mock can only approximate the browser here: the production fix tags the
  * winner DURING the scoring evaluate, so a post-score mutation that does not
  * touch the marker leaves the fill bound to the originally-scored element. A
  * mock that re-selected by numeric index (the OLD design) would instead bind to
- * whatever now sits at that index — that divergence is exactly the race.
+ * whatever now sits at that index - that divergence is exactly the race.
  */
 function makeResolvePage(candidates, opts = {}) {
   const RESOLVE_MARKER = 'data-aidr-resolve';
@@ -242,7 +242,7 @@ test('resolveField: picks lastName by name attribute', async () => {
   assert.equal(result._resolvedEl, candidates[1], 'should pick the last-name input (index 1)');
 });
 
-// ─── 3. resolveField: below threshold — abstains ─────────────────────────────
+// ─── 3. resolveField: below threshold - abstains ─────────────────────────────
 
 test('resolveField: returns null when no candidate scores above MATCH_THRESHOLD', async () => {
   // Only weak signal: placeholder contains "mail" (not "email"), score = 2
@@ -256,10 +256,10 @@ test('resolveField: returns null when no candidate scores above MATCH_THRESHOLD'
   assert.equal(result, null, 'should return null when score < MATCH_THRESHOLD');
 });
 
-// ─── 4. resolveField: tie — abstains ─────────────────────────────────────────
+// ─── 4. resolveField: tie - abstains ─────────────────────────────────────────
 
 test('resolveField: returns null when two candidates share the same top score', async () => {
-  // Both candidates are structurally identical — exact same score for email intent.
+  // Both candidates are structurally identical - exact same score for email intent.
   // Same name, type, autocomplete, placeholder ⇒ identical scoring → tie.
   const candidates = [
     makeEl({ name: 'email', type: 'email', tagName: 'INPUT', autocomplete: 'email', placeholder: 'email address' }),
@@ -272,7 +272,7 @@ test('resolveField: returns null when two candidates share the same top score', 
   assert.equal(result, null, 'should return null on tied scores (ambiguous)');
 });
 
-// ─── 5. resolveField: generic intent — abstains ───────────────────────────────
+// ─── 5. resolveField: generic intent - abstains ───────────────────────────────
 
 test('resolveField: returns null for generic intent', async () => {
   const candidates = [
@@ -423,7 +423,7 @@ test('fillForm: secondary resolver fires when primary is kill-switched (ambiguou
   assert.equal(candidates[0]._filledWith, 'Jane Doe', 'resolver should fill the correct value into the marked element');
 });
 
-// ─── 8. fillForm: happy path — exact selector hit, resolver never invoked ────
+// ─── 8. fillForm: happy path - exact selector hit, resolver never invoked ────
 
 test('fillForm: resolver is NOT invoked when the exact selector hits on first try', async () => {
   let resolverInvoked = false;
@@ -460,7 +460,7 @@ test('fillForm: resolver is NOT invoked when the exact selector hits on first tr
   assert.equal(fills[0].v, 'user@example.com');
 });
 
-// ─── 9. fillForm: no double-fill — primary fallback success blocks resolver ───
+// ─── 9. fillForm: no double-fill - primary fallback success blocks resolver ───
 
 test('fillForm: resolver is NOT invoked when primary getByLabel fallback succeeds', async () => {
   let resolverInvoked = false;
@@ -471,7 +471,7 @@ test('fillForm: resolver is NOT invoked when primary getByLabel fallback succeed
       return {
         first() {
           return {
-            async count() { return 0; },   // miss — trigger fallback
+            async count() { return 0; },   // miss - trigger fallback
             async isVisible() { return false; },
           };
         },
@@ -479,7 +479,7 @@ test('fillForm: resolver is NOT invoked when primary getByLabel fallback succeed
     },
     getByLabel() {
       return {
-        async count() { return 1; }, // getByLabel HIT — one matching element
+        async count() { return 1; }, // getByLabel HIT - one matching element
         first() {
           return {
             async fill() { primaryFilled = true; },
@@ -507,7 +507,7 @@ test('fillForm: resolver is NOT invoked when primary getByLabel fallback succeed
 // has no associated <label> for getByLabel to hit), the resolver MUST still fire.
 //
 // Before the fix, fillForm() set `filled = true` UNCONDITIONALLY after calling
-// getByLabel().first().fill().catch(() => {}) — so a getByLabel that matched
+// getByLabel().first().fill().catch(() => {}) - so a getByLabel that matched
 // nothing still flagged the field as filled and the semantic resolver was
 // SKIPPED, defeating the entire purpose of the PR for exactly the failure mode
 // it targets (renamed attr + no label).
@@ -556,7 +556,7 @@ function makeLabelMissPage(candidates) {
       // (no element), but the count() gate means it is never reached.
       state.getByLabelAttempted = true;
       return {
-        async count() { return 0; }, // silent miss — zero matching elements
+        async count() { return 0; }, // silent miss - zero matching elements
         first() {
           return { async fill() { throw new Error('locator.fill: no element matches the label'); } };
         },
@@ -594,14 +594,14 @@ test('fillForm: resolver FIRES when CSS miss + getByLabel silently misses (renam
   await fillForm(page, { 'input[name*="email" i]': 'user@example.com' });
 
   assert.ok(state.getByLabelAttempted, 'primary getByLabel path should have been entered (non-ambiguous keyword)');
-  assert.ok(state.resolverCalled, 'resolver MUST fire after a SILENT getByLabel miss — not be short-circuited by filled=true');
+  assert.ok(state.resolverCalled, 'resolver MUST fire after a SILENT getByLabel miss - not be short-circuited by filled=true');
   assert.equal(candidates[0]._filledWith, 'user@example.com', 'resolver should fill the renamed email field that getByLabel could not reach');
   assert.ok(!candidates[0].hasAttribute('data-aidr-resolve'), 'marker cleared after fill');
 });
 
 // Companion to 9 + 9b: getByLabel SUCCESS still short-circuits the resolver
 // (no double-fill). With the fix, filled=true is gated on getByLabel actually
-// matching ≥1 element — so a real hit must still block the resolver.
+// matching ≥1 element - so a real hit must still block the resolver.
 test('fillForm: getByLabel SUCCESS short-circuits the resolver (no double-fill)', async () => {
   let resolverInvoked = false;
   let primaryFillCount = 0;
@@ -630,7 +630,7 @@ test('fillForm: getByLabel SUCCESS short-circuits the resolver (no double-fill)'
 
 test('resolveField: recovers when field has only a placeholder for email intent', async () => {
   const candidates = [
-    // No name, no id, no label, no autocomplete — just placeholder
+    // No name, no id, no label, no autocomplete - just placeholder
     makeEl({ name: '', id: '', type: 'email', tagName: 'INPUT', placeholder: 'your email address', autocomplete: '' }),
   ];
 
@@ -652,10 +652,10 @@ test('resolveField: recovers when field has only an aria-label for email intent'
   const page = makeResolvePage(candidates);
   const result = await resolveField(page, 'input[name="email_contact"]', 'user@example.com');
 
-  // type text = 0; aria-label includes "email" = 2 pts — below threshold alone
+  // type text = 0; aria-label includes "email" = 2 pts - below threshold alone
   // We need the value to push over: value looks like email → intent=email
   // BUT score from aria-label alone = 2 < 5. Correct result is null.
-  // The resolver is conservative — it should NOT match on a single weak signal.
+  // The resolver is conservative - it should NOT match on a single weak signal.
   // This tests that we DON'T over-reach.
   assert.equal(result, null, 'single weak signal (aria-label=2) must not exceed threshold');
 });
@@ -705,7 +705,7 @@ test('resolveField: matches lastName when broker renamed attr to family_name_v2'
   assert.equal(result._resolvedEl, candidates[1], 'should pick family_name_v2 (index 1)');
 });
 
-// ─── 13. HIGH — confirm / duplicate / secondary field PII guard ──────────────
+// ─── 13. HIGH - confirm / duplicate / secondary field PII guard ──────────────
 //
 // The fail-safe invariant ("a wrong fill is worse than no fill") must hold on
 // every confirm/duplicate layout. A confirm field carries the SAME positive
@@ -713,7 +713,7 @@ test('resolveField: matches lastName when broker renamed attr to family_name_v2'
 // negative-signal penalty it scores as high or higher and the resolver fills
 // the user's PII into the wrong box. The matrix below proves abstention.
 
-// CASE F — a SOLE visible confirm field (no primary present). The resolver must
+// CASE F - a SOLE visible confirm field (no primary present). The resolver must
 // abstain: there is nothing legitimate to fill, and filling the confirm box
 // leaves the masked email in the wrong field with the primary empty.
 test('confirm-guard CASE F: sole confirm_email → abstain (no primary present)', async () => {
@@ -725,22 +725,22 @@ test('confirm-guard CASE F: sole confirm_email → abstain (no primary present)'
   assert.equal(result, null, 'sole confirm field must not be filled');
 });
 
-// CASE A — the dangerous asymmetric layout: primary email renamed unreadable
+// CASE A - the dangerous asymmetric layout: primary email renamed unreadable
 // (name="usr_em", no type) while a fully-readable confirm field exists. The
 // confirm would win outright (no tie → the symmetric tie-break cannot save it).
 // With the negative guard the confirm scores 0 and the primary is unreadable,
-// so the resolver abstains — it never lands the email only in the confirm box.
+// so the resolver abstains - it never lands the email only in the confirm box.
 test('confirm-guard CASE A: primary unreadable + confirm readable → abstain (never fills confirm)', async () => {
   const primary = makeEl({ name: 'usr_em', id: '', type: 'text', tagName: 'INPUT', autocomplete: '', placeholder: '' });
   const confirm = makeEl({ name: 'confirm_email', id: 'confirm_email', type: 'email', tagName: 'INPUT', autocomplete: 'email', placeholder: 'Confirm email' });
   const candidates = [primary, confirm];
   const page = makeResolvePage(candidates);
   const result = await resolveField(page, 'input[name="email"]', 'relay@mask.example');
-  assert.equal(result, null, 'must abstain — filling the confirm field breaks email !== confirm submission');
+  assert.equal(result, null, 'must abstain - filling the confirm field breaks email !== confirm submission');
   assert.ok(!confirm.hasAttribute('data-aidr-resolve'), 'confirm field must never be tagged as the winner');
 });
 
-// CASE primary+confirm both readable — the resolver MUST pick the primary, never
+// CASE primary+confirm both readable - the resolver MUST pick the primary, never
 // the confirm. This proves the guard does not over-abstain on a legit layout.
 test('confirm-guard: primary readable + confirm readable → fills the PRIMARY only', async () => {
   const primary = makeEl({ name: 'email', id: 'email', type: 'email', tagName: 'INPUT', autocomplete: 'email', placeholder: 'Email' });
@@ -752,7 +752,7 @@ test('confirm-guard: primary readable + confirm readable → fills the PRIMARY o
   assert.equal(result._resolvedEl, primary, 'must pick the primary, not the confirm');
 });
 
-// RAW-PII variants — name/phone/zip confirm fields carry real PII, not a masked
+// RAW-PII variants - name/phone/zip confirm fields carry real PII, not a masked
 // relay address. Each sole-confirm layout must abstain.
 test('confirm-guard: sole confirm_first_name (RAW name PII) → abstain', async () => {
   const candidates = [
@@ -792,10 +792,10 @@ test('confirm-guard: secondary_email / re-enter / repeat markers all abstain', a
   }
 });
 
-// MINOR — JSDoc advertises dup(licate); the guard must abstain on BOTH the
+// MINOR - JSDoc advertises dup(licate); the guard must abstain on BOTH the
 // short token "dup" AND the full word "duplicate". Before strengthening the
 // alternation to dup(?:licate)?, "duplicate_email" did NOT match and would be
-// a fill target — a doc/regex mismatch on the SAFE side of the negative guard.
+// a fill target - a doc/regex mismatch on the SAFE side of the negative guard.
 test('confirm-guard: dup AND duplicate markers both abstain (doc/regex parity)', async () => {
   for (const marker of ['dup_email', 'duplicate_email', 'email_dup', 'email_duplicate']) {
     const candidates = [
@@ -807,7 +807,7 @@ test('confirm-guard: dup AND duplicate markers both abstain (doc/regex parity)',
   }
 });
 
-// Carve-out — a version suffix (v2) is NOT a duplicate marker. The renamed
+// Carve-out - a version suffix (v2) is NOT a duplicate marker. The renamed
 // PRIMARY must still resolve (this is the regression the guard must not cause).
 test('confirm-guard: version suffix v2 is NOT treated as a duplicate marker', async () => {
   const candidates = [
@@ -819,14 +819,14 @@ test('confirm-guard: version suffix v2 is NOT treated as a duplicate marker', as
   assert.equal(result._resolvedEl, candidates[0]);
 });
 
-// ─── 14. LOW — deriveIntent snake_case / dash recall ─────────────────────────
+// ─── 14. LOW - deriveIntent snake_case / dash recall ─────────────────────────
 
 test('deriveIntent: full_name (snake_case) → fullName', () => {
   assert.equal(deriveIntent('input[name="full_name"]', ''), 'fullName');
 });
 
 test('deriveIntent: user_email (snake_case, empty value) → email', () => {
-  // value is empty to isolate the selector path — \bemail\b would miss because
+  // value is empty to isolate the selector path - \bemail\b would miss because
   // `_` is a word char; substring match catches it.
   assert.equal(deriveIntent('input[name="user_email"]', ''), 'email');
 });
@@ -847,7 +847,7 @@ test('deriveIntent: username still excluded from fullName (guard intact)', () =>
   assert.equal(deriveIntent('input[name="username"]', ''), 'generic');
 });
 
-// ─── 15. MEDIUM — snapshot-consistent selection (TOCTOU) ─────────────────────
+// ─── 15. MEDIUM - snapshot-consistent selection (TOCTOU) ─────────────────────
 //
 // The winner is tagged with a data-* marker INSIDE the scoring evaluate and is
 // located by that marker, not re-selected by numeric index. A DOM mutation that
@@ -860,7 +860,7 @@ test('deriveIntent: username still excluded from fullName (guard intact)', () =>
 // returns but BEFORE the fill locator resolves. Because the production fix binds
 // the locator to the marker (carried ON the element object), the fill follows
 // the originally-scored element through the mutation. A pure-index design would
-// instead follow the index into the mutated array — that divergence IS the race.
+// instead follow the index into the mutated array - that divergence IS the race.
 
 test('TOCTOU: winner is bound by marker, survives a node prepended after scoring', async () => {
   const winner = makeEl({ name: 'email', id: 'email', type: 'email', tagName: 'INPUT', autocomplete: 'email', placeholder: 'Email' });
@@ -904,7 +904,7 @@ test('TOCTOU: a stale marker from a prior run is cleared before scoring', async 
   assert.ok(!stale.hasAttribute('data-aidr-resolve'), 'stale marker must be removed');
 });
 
-// ─── 16. Observability — abstain emits one console.warn (new path only) ──────
+// ─── 16. Observability - abstain emits one console.warn (new path only) ──────
 
 test('observability: abstain on generic intent emits one console.warn', async () => {
   const warns = [];
@@ -948,7 +948,7 @@ test('observability: a successful resolve does NOT warn', async () => {
   assert.equal(warns.length, 0, 'no warn on a successful match');
 });
 
-// ─── 17. LOW — SIGNAL_WEIGHTS is a real exported constant (DRY) ───────────────
+// ─── 17. LOW - SIGNAL_WEIGHTS is a real exported constant (DRY) ───────────────
 
 test('SIGNAL_WEIGHTS: exported, frozen, has the documented weights', () => {
   assert.equal(typeof SIGNAL_WEIGHTS, 'object');
@@ -963,7 +963,7 @@ test('scoreElement closure-free: serialized scorer references no module-level fr
   // The scorer is serialized via .toString() and rebuilt with new Function inside
   // page.evaluate. If it closed over SIGNAL_WEIGHTS / MATCH_THRESHOLD / a regex,
   // those references would be undefined in the browser. Guard: the source must
-  // not name any module-level identifier — it takes weights + negativeMarkerSrc
+  // not name any module-level identifier - it takes weights + negativeMarkerSrc
   // as parameters instead.
   const fnResolverSrc = resolveField.toString();
   // Pull the scorer's serialized source the way resolveField does (scoreElement
@@ -974,7 +974,7 @@ test('scoreElement closure-free: serialized scorer references no module-level fr
 });
 
 // ─── Falsification check: verify tests go RED without the resolver ────────────
-// Sections 6 and 7 assert state.resolverCalled=true — removing the resolveField
+// Sections 6 and 7 assert state.resolverCalled=true - removing the resolveField
 // integration from fillForm makes them fail. The confirm-guard matrix (13) goes
 // RED if the negative-signal penalty is removed (confirm fields would score high
 // and resolve). The TOCTOU tests (15) go RED if selection reverts to nth(index).

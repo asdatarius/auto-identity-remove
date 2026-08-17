@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 #
-# Deployment image for auto-identity-remove — NAS / Portainer edition.
+# Deployment image for auto-identity-remove - NAS / Portainer edition.
 #
 # Differences vs the upstream Dockerfile:
 #   - adds supercronic so the container schedules the monthly run itself
