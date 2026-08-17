@@ -48,7 +48,7 @@ const { configStatus } = require('./config-status');
 const { FREEZE_TARGETS, TARGET_KEYS, getFreezeStatus } = require('../lib/freeze');
 
 const ROOT = path.resolve(__dirname, '..');
-// Honour the same AIDR_* path overrides as lib/config.js/watcher.js — otherwise
+// Honour the same AIDR_* path overrides as lib/config.js/watcher.js - otherwise
 // the dashboard reads/writes different files than the watcher in a container.
 const CONFIG = process.env.AIDR_CONFIG || path.join(ROOT, 'config.json');
 const CONFIG_ENC = CONFIG + '.enc';

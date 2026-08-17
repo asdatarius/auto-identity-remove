@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# run-now — manually trigger an opt-out run inside the already-running container.
+# run-now - manually trigger an opt-out run inside the already-running container.
 #
 #   docker exec auto-identity-remove run-now              # full run
 #   docker exec auto-identity-remove run-now --dry-run    # no submissions
@@ -12,7 +12,7 @@
 # under /data keep the right ownership. The scheduler stays untouched; the
 # state.json lock prevents this from colliding with a scheduled run in progress.
 set -e
-# docker exec inherits the image env, NOT the entrypoint's exports — and gosu
+# docker exec inherits the image env, NOT the entrypoint's exports - and gosu
 # preserves HOME. Without this, the seeded config's "~/.config/..." profileDir
 # expands to /root/... and mkdir as PUID fails EACCES. Mirror entrypoint.sh.
 export HOME="${AIDR_DATA:-/data}"

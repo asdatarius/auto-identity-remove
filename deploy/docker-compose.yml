@@ -1,4 +1,4 @@
-# auto-identity-remove — Portainer stack (NAS edition)
+# auto-identity-remove - Portainer stack (NAS edition)
 #
 # In Portainer: Stacks → Add stack → Web editor → paste this → deploy.
 # Edit the four marked spots: image namespace, TZ, PUID/PGID, and the volume path.

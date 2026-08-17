@@ -43,7 +43,7 @@ function _getConfig() {
   }
 
   try {
-    // Honour the same AIDR_CONFIG override as lib/config.js — in a container
+    // Honour the same AIDR_CONFIG override as lib/config.js - in a container
     // config.json lives on the mounted data dir, not next to this file.
     _cachedConfig = require(process.env.AIDR_CONFIG || './config.json');
   } catch (_) {

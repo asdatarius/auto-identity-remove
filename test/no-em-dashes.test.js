@@ -26,8 +26,8 @@ const { execFileSync } = require('node:child_process');
 
 const ROOT = path.join(__dirname, '..');
 
-const EM_DASH = '—';
-const EN_DASH = '–';
+const EM_DASH = '\u2014';
+const EN_DASH = '\u2013';
 
 /** Tracked files, so generated and ignored content is out of scope. */
 function trackedFiles() {

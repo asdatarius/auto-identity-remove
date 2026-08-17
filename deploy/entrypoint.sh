@@ -24,16 +24,16 @@ PGID="${PGID:-1000}"
 
 mkdir -p "$DATA_DIR" "$AIDR_LOG_DIR" "$DATA_DIR/profile" 2>/dev/null || true
 
-# Seed config from the example on first boot — the run will exit early until
+# Seed config from the example on first boot - the run will exit early until
 # you fill it in, but this gives you a file to edit on the NAS volume.
 if [ ! -f "$AIDR_CONFIG" ]; then
-  echo "[entrypoint] no config at $AIDR_CONFIG — seeding from example."
+  echo "[entrypoint] no config at $AIDR_CONFIG - seeding from example."
   echo "[entrypoint] >>> EDIT $AIDR_CONFIG with your details before the scheduled run. <<<"
   cp /app/config.example.json "$AIDR_CONFIG" 2>/dev/null || true
 fi
 [ -f "$AIDR_STATE" ] || echo '{"optOuts":{}}' > "$AIDR_STATE" 2>/dev/null || true
 
-# supercronic crontab — output is teed to the data volume and to stdout.
+# supercronic crontab - output is teed to the data volume and to stdout.
 CRONTAB="/tmp/aidr.crontab"
 echo "$CRON_SCHEDULE node /app/watcher.js $WATCHER_ARGS" > "$CRONTAB"
 
