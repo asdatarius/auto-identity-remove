@@ -909,9 +909,10 @@ async function _mainBody() {
     // onlyPerson restricts this call to the current person - sendOptOutEmails
     // otherwise re-sends to every person in config on every call, so calling
     // it once per person in this loop multiplied real sends by persons.length.
+    // dryRun: --dry-run must not send real opt-out emails either.
     if (!VERIFY) {
       console.log('── Email opt-outs ─────────────────────────────────────────');
-      await sendOptOutEmails(brokers, config, undefined, { submissionEmailFor: (p) => (p === person ? submissionEmail : undefined), onlyPerson: person });
+      await sendOptOutEmails(brokers, config, undefined, { submissionEmailFor: (p) => (p === person ? submissionEmail : undefined), onlyPerson: person, dryRun: DRY_RUN });
     }
 
     const filterOpts = {

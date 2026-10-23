@@ -7,6 +7,7 @@
  *   - cfg.persons empty + cfg.person present falls back to person
  *   - neither cfg.person nor cfg.persons: no emails, no error
  *   - opts.onlyPerson restricts the call to that one person
+ *   - opts.dryRun sends nothing even with SMTP configured
  */
 
 const { test } = require('node:test');
@@ -207,4 +208,21 @@ test('opts.onlyPerson sends only for that person, so a per-person caller does no
   assert.equal(nmCalls.length, 2, 'expected one email per person across the whole loop');
   assert.equal(nmCalls.filter(c => c.subject.includes('Alice Adams')).length, 1);
   assert.equal(nmCalls.filter(c => c.subject.includes('Bob Brown')).length, 1);
+});
+
+test('opts.dryRun sends nothing even with SMTP configured', async () => {
+  // watcher.js --dry-run promises "nothing sent". Before dryRun reached this
+  // function, a dry run with working SMTP sent real opt-out emails.
+  const logCalls = patchDeps(999);
+  const { freshEmail, nmCalls, restore } = loadFreshEmailWithSmtpMock();
+
+  const cfg = { persons: [PERSON_A, PERSON_B], email: { smtp: SMTP_CFG } };
+  await freshEmail.sendOptOutEmails([EMAIL_BROKER, EMAIL_BROKER_2], cfg, 'linux', { dryRun: true });
+
+  restore();
+  restoreDeps();
+
+  assert.equal(nmCalls.length, 0, 'dry run must not call sendMail');
+  assert.equal(logCalls.length, 4, 'expected one skipped line per broker per person');
+  assert.ok(logCalls.every(c => c.status === 'skipped'), 'every line should be skipped');
 });
