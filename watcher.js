@@ -17,6 +17,7 @@ const { findDefunct, DEFUNCT_THRESHOLD } = require('./lib/defunct');
 const { sendText, desktopNotify, openInBrowser } = require('./lib/notify');
 const brokerRunner = require('./lib/broker-runner');
 const { sendOptOutEmails } = require('./lib/email');
+const { smtpTransportOptions } = require('./lib/smtp');
 const { getSubmissionEmail } = require('./lib/relay');
 const lock = require('./lib/lock');
 const { applyFilter, loadLastLog, extractFailedBrokers } = require('./lib/filter');
@@ -558,12 +559,7 @@ try {
       }
       if (nodemailer) {
         try {
-          const transporter = nodemailer.createTransport({
-            host: smtp.host,
-            port: smtp.port || 587,
-            secure: (smtp.port || 587) === 465,
-            auth: { user: smtp.user, pass: smtp.pass },
-          });
+          const transporter = nodemailer.createTransport(smtpTransportOptions(smtp));
           await transporter.sendMail({
             from: smtp.from || smtp.user,
             to: reportConfig.notify.emailReportTo,
