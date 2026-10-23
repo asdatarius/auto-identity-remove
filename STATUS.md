@@ -10,6 +10,7 @@
 > - **Acxiom**: live but requires multi-step identity verification at acxiom.com/about-us/privacy/. Single-form POST will fail.
 > - **LexisNexis Risk Solutions**: requires a fillable PDF mailed/faxed + a separate portal at consumer.risk.lexisnexis.com. Single-form POST will fail.
 > - **ZoomInfo**: opt-out is at privacyrequest.zoominfo.com/remove/verify, behind a "Press & Hold" bot challenge and email verification. Now `manual`.
+> - **ClustrMaps**: removed from `brokers.js` (Oct 2026). Its own DNS points clustrmaps.com at 127.0.0.1 (since about Sep 2026), so the site is unreachable everywhere; the domain is still registered and may return.
 > - **PublicDataUSA**: removed from `brokers.js` (Oct 2026). The domain no longer resolves; the site appears to have shut down around September 2026.
 >
 > If you encounter a broker that has changed its form, please file a GitHub issue with the broker name and the new form layout.
@@ -23,7 +24,7 @@
 - **Confidence** - `verified` means the selectors / flow have been manually confirmed against the live site. `untested` means the entry exists but has not been hand-verified end-to-end and depends on the broker not having changed its DOM.
 - **US-only** - site indexes US public records / voter data / phone directories; automatically skipped for non-US users.
 
-**This list covers the 43 explicit brokers in `brokers.js` only.** The other ~490 brokers in `data/markup-parsed.json` and `data/badbool-extra.json` are handled by the heuristic generic runner - every one of those is best-effort. Run `node watcher.js --verify` to spot-check whether opt-outs are still in effect.
+**This list covers the 42 explicit brokers in `brokers.js` only.** The other ~490 brokers in `data/markup-parsed.json` and `data/badbool-extra.json` are handled by the heuristic generic runner - every one of those is best-effort. Run `node watcher.js --verify` to spot-check whether opt-outs are still in effect.
 
 ---
 
@@ -53,7 +54,6 @@
 | InfoTracer | direct-form | no | untested | no |
 | SocialCatfish | direct-form | no | untested | no |
 | NationalPublicData | direct-form | no | defunct | no |
-| ClustrMaps | direct-form | no | untested | no |
 | PrivateRecords | direct-form | no | untested | no |
 | Acxiom | direct-form | no | defunct | no |
 | LexisNexis | direct-form | no | defunct | no |

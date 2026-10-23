@@ -372,15 +372,13 @@ function buildBrokers(person) {
     priority: 2,
   },
 
-  {
-    name: 'ClustrMaps',
-    method: 'direct-form',
-    optOutUrl: 'https://clustrmaps.com/bl/opt-out',
-    formFields: { 'input[name*="name" i]': N, 'input[name*="email" i]': E },
-    submitSelector: 'button[type="submit"]',
-    captchaLikely: false,
-    priority: 2,
-  },
+  // ClustrMaps removed 2026-10-23: clustrmaps.com and www. resolve to
+  // 127.0.0.1 from ClustrMaps' own nameservers (srv53), confirmed via
+  // Cloudflare and Google DNS-over-HTTPS too, so no browser anywhere can
+  // reach it. The SOA serial dates the change to about 2026-09-21. The
+  // domain is still registered (to 2027-06), so it may come back - re-add
+  // this entry if it does, and drop clustrmaps.com from data/dead-urls.json
+  // (added so the generic runner's BADBOOL copy stops retrying it).
 
   {
     name: 'PrivateRecords',
