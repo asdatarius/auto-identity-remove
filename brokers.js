@@ -300,16 +300,11 @@ function buildBrokers(person) {
     usOnly: true,
   },
 
-  {
-    name: 'PublicDataUSA',
-    method: 'direct-form',
-    optOutUrl: 'https://www.publicdatausa.com/remove.php',
-    formFields: { 'input[name*="name" i]': N, 'input[name*="email" i]': E, 'input[name*="state" i]': ST },
-    submitSelector: 'input[type="submit"],button[type="submit"]',
-    captchaLikely: false,
-    priority: 2,
-    usOnly: true,
-  },
+  // PublicDataUSA removed 2026-10-23: domain no longer resolves
+  // (getaddrinfo EAI_AGAIN), and its twin site usa-official.com is also down.
+  // Multiple independent sources confirm the site was shut down around
+  // September 2026. Per the convention above ("Remove from brokers.js if
+  // site is gone"), there's no live site left to opt out of.
 
   {
     name: 'SmartBackgroundChecks',
@@ -421,9 +416,13 @@ function buildBrokers(person) {
   },
 
   {
+    // URL updated 2026-10-23: old /update-my-info page returned 404.
+    // Current official route is ZoomInfo's Trust Center "Request Removal"
+    // link, which is an identity-verification flow rather than a plain
+    // form - formFields below are a best guess and need live verification.
     name: 'ZoomInfo',
     method: 'direct-form',
-    optOutUrl: 'https://www.zoominfo.com/update-my-info',
+    optOutUrl: 'https://privacyrequest.zoominfo.com/remove/verify',
     formFields: { 'input[name*="first" i]': F, 'input[name*="last" i]': L, 'input[type="email"]': E },
     submitSelector: 'button[type="submit"]',
     captchaLikely: false,
@@ -431,9 +430,14 @@ function buildBrokers(person) {
   },
 
   {
+    // URL updated 2026-10-23: old clearbit.com/privacy/opt-out returned 404.
+    // Clearbit is now HubSpot's "Breeze Intelligence"; requests route through
+    // a DataGrail-hosted Privacy Request Center. formFields below are a best
+    // guess (country/state + request-type selection) and need live
+    // verification - the real form may not match these selectors.
     name: 'Clearbit',
     method: 'direct-form',
-    optOutUrl: 'https://clearbit.com/privacy/opt-out',
+    optOutUrl: 'https://preferences.clearbit.com',
     formFields: { 'input[type="email"]': E },
     submitSelector: 'button[type="submit"]',
     captchaLikely: false,
@@ -501,9 +505,11 @@ function buildBrokers(person) {
   },
 
   {
+    // URL updated 2026-10-23: old /privacy/data-subject-rights-request
+    // returned 404. Confirmed-live replacement is legal.epsilon.com/dsr/.
     name: 'Epsilon',
     method: 'direct-form',
-    optOutUrl: 'https://www.epsilon.com/privacy/data-subject-rights-request',
+    optOutUrl: 'https://legal.epsilon.com/dsr/',
     formFields: { 'input[name*="first" i]': F, 'input[name*="last" i]': L, 'input[type="email"]': E },
     submitSelector: 'button[type="submit"]',
     captchaLikely: false,
@@ -521,9 +527,13 @@ function buildBrokers(person) {
   },
 
   {
+    // URL updated 2026-10-23: old /privacy/opt-out/ returned 404. Confirmed
+    // replacement is the "Your Privacy Choices" (sale/sharing opt-out) link
+    // on equifax.com - distinct from optoutprescreen.com, which is the
+    // separate prescreened-credit-offer opt-out already listed elsewhere.
     name: 'Equifax (marketing)',
     method: 'direct-form',
-    optOutUrl: 'https://www.equifax.com/privacy/opt-out/',
+    optOutUrl: 'https://myprivacy.equifax.com/opt-in-opt-out/personal-info/',
     formFields: { 'input[name*="first" i]': F, 'input[name*="last" i]': L, 'input[type="email"]': E, 'input[name*="zip" i]': Z },
     submitSelector: 'button[type="submit"],input[type="submit"]',
     captchaLikely: false,

@@ -906,9 +906,12 @@ async function _mainBody() {
     const personBrokers = brokers.forPerson(person);
 
     // Email opt-outs (no browser needed - skipped in verify mode)
+    // onlyPerson restricts this call to the current person - sendOptOutEmails
+    // otherwise re-sends to every person in config on every call, so calling
+    // it once per person in this loop multiplied real sends by persons.length.
     if (!VERIFY) {
       console.log('── Email opt-outs ─────────────────────────────────────────');
-      await sendOptOutEmails(brokers, config, undefined, { submissionEmailFor: (p) => (p === person ? submissionEmail : undefined) });
+      await sendOptOutEmails(brokers, config, undefined, { submissionEmailFor: (p) => (p === person ? submissionEmail : undefined), onlyPerson: person });
     }
 
     const filterOpts = {
