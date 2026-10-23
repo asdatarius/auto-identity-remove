@@ -6,10 +6,10 @@
 >
 > **Brokers known to be dead or moved as of late 2025:**
 > - **NationalPublicData**: defunct (Aug 2024 SSN breach + Oct 2024 bankruptcy). Listing kept for historical reference; opt-out flow does not work.
-> - **Clearbit**: acquired by HubSpot (Nov 2023), now "Breeze Intelligence". Opt-out runs through a DataGrail-hosted request center at preferences.clearbit.com.
+> - **Clearbit**: acquired by HubSpot (Nov 2023), now "Breeze Intelligence". Opt-out runs through a DataGrail request center at preferences.clearbit.com. Now `manual`: the form needs a custom dropdown and a second confirm step that the direct-form runner cannot complete.
 > - **Acxiom**: live but requires multi-step identity verification at acxiom.com/about-us/privacy/. Single-form POST will fail.
 > - **LexisNexis Risk Solutions**: requires a fillable PDF mailed/faxed + a separate portal at consumer.risk.lexisnexis.com. Single-form POST will fail.
-> - **ZoomInfo**: opt-out is at privacyrequest.zoominfo.com/remove/verify behind identity verification.
+> - **ZoomInfo**: opt-out is at privacyrequest.zoominfo.com/remove/verify, behind a "Press & Hold" bot challenge and email verification. Now `manual`.
 > - **PublicDataUSA**: removed from `brokers.js` (Oct 2026). The domain no longer resolves; the site appears to have shut down around September 2026.
 >
 > If you encounter a broker that has changed its form, please file a GitHub issue with the broker name and the new form layout.
@@ -57,8 +57,8 @@
 | PrivateRecords | direct-form | no | untested | no |
 | Acxiom | direct-form | no | defunct | no |
 | LexisNexis | direct-form | no | defunct | no |
-| ZoomInfo | direct-form | no | defunct | no |
-| Clearbit | direct-form | no | defunct | no |
+| ZoomInfo | manual | n/a | n/a | no |
+| Clearbit | manual | n/a | n/a | no |
 | PeekYou | direct-form | no | untested | no |
 | Addresses.com | direct-form | no | untested | yes |
 | AnyWho | direct-form | no | untested | yes |

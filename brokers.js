@@ -416,31 +416,31 @@ function buildBrokers(person) {
   },
 
   {
-    // URL updated 2026-10-23: old /update-my-info page returned 404.
-    // Current official route is ZoomInfo's Trust Center "Request Removal"
-    // link, which is an identity-verification flow rather than a plain
-    // form - formFields below are a best guess and need live verification.
+    // Manual since 2026-10-23: the removal page sits behind a HUMAN
+    // (PerimeterX) "Press & Hold" bot challenge - checked live, it returns
+    // 403 to an automated browser before any form renders. The old
+    // /update-my-info page is a 404.
     name: 'ZoomInfo',
-    method: 'direct-form',
+    method: 'manual',
     optOutUrl: 'https://privacyrequest.zoominfo.com/remove/verify',
-    formFields: { 'input[name*="first" i]': F, 'input[name*="last" i]': L, 'input[type="email"]': E },
-    submitSelector: 'button[type="submit"]',
-    captchaLikely: false,
+    notes: 'Open https://privacyrequest.zoominfo.com/remove/verify, pass the "Press & Hold" check, then follow the email verification to request removal.',
     priority: 1,
   },
 
   {
-    // URL updated 2026-10-23: old clearbit.com/privacy/opt-out returned 404.
-    // Clearbit is now HubSpot's "Breeze Intelligence"; requests route through
-    // a DataGrail-hosted Privacy Request Center. formFields below are a best
-    // guess (country/state + request-type selection) and need live
-    // verification - the real form may not match these selectors.
+    // Manual since 2026-10-23. Clearbit is now HubSpot's "Breeze
+    // Intelligence"; requests go through a DataGrail Privacy Request Center
+    // (old clearbit.com/privacy/opt-out is a 404). Checked live, the deletion
+    // form at /form/deletion?locationCode=US-<ST> has first_name, last_name
+    // and email_address inputs, but direct-form cannot finish it: the
+    // required "relationship" field is a MUI select with a hidden input that
+    // fillForm cannot set, and "Review Request" leads to a second confirm
+    // step, so a single submit click would be reported for a request that
+    // was never sent.
     name: 'Clearbit',
-    method: 'direct-form',
+    method: 'manual',
     optOutUrl: 'https://preferences.clearbit.com',
-    formFields: { 'input[type="email"]': E },
-    submitSelector: 'button[type="submit"]',
-    captchaLikely: false,
+    notes: 'Open https://preferences.clearbit.com, choose your country and state, then "Start Deletion Request". Pick "Myself", fill name and email, set relationship (usually "Other"), then Review Request and confirm.',
     priority: 1,
   },
 
