@@ -442,6 +442,21 @@ function buildBrokers(person) {
     priority: 1,
   },
 
+  {
+    // Manual since 2026-10-24. Andrews Wharton ("A Stirista Solution") came in
+    // from the Markup dataset, and its homepage has a marketing sign-up form.
+    // The generic runner filled and submitted it, logged "Form submitted" as
+    // an opt-out, and the user got a "Confirm your subscription" email
+    // instead. Listing it here with the homepage as optOutUrl dedupes the
+    // generic entry by host so the runner never submits that form again; the
+    // real opt-out is Stirista's portal.
+    name: 'Andrews Wharton',
+    method: 'manual',
+    optOutUrl: 'https://www.andrewswharton.com/',
+    notes: 'Do not use the sign-up form on andrewswharton.com, and do not click any "Confirm your subscription" email from it. Andrews Wharton is part of Stirista: opt out at https://unsubscribe.stirista.com/ or email privacy@stirista.com with your name, email and current and prior addresses.',
+    priority: 3,
+  },
+
   // ═══ Additional people-search / data broker sites ════════════════════════
 
   {
