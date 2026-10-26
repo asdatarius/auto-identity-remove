@@ -14,9 +14,10 @@ const os   = require('os');
 const { STATE_PATH, RECHECK_DAYS, loadConfig, loadState, saveState, recordSuccess, setDryRun, getPersonsFromConfig, loadCheckpoint, clearCheckpoint, findResumeIndex } = require('./lib/config');
 const { results, logResult, buildSummary, setDefunctBrokers } = require('./lib/logger');
 const { findDefunct, DEFUNCT_THRESHOLD } = require('./lib/defunct');
-const { openInBrowser, dispatchNotify } = require('./lib/notify');
+const { desktopNotify, openInBrowser, pickManualUrlsToOpen, dispatchNotify } = require('./lib/notify');
 const brokerRunner = require('./lib/broker-runner');
 const { sendOptOutEmails } = require('./lib/email');
+const { smtpTransportOptions } = require('./lib/smtp');
 const { getSubmissionEmail } = require('./lib/relay');
 const lock = require('./lib/lock');
 const { applyFilter, loadLastLog, extractFailedBrokers } = require('./lib/filter');
@@ -558,12 +559,7 @@ try {
       }
       if (nodemailer) {
         try {
-          const transporter = nodemailer.createTransport({
-            host: smtp.host,
-            port: smtp.port || 587,
-            secure: (smtp.port || 587) === 465,
-            auth: { user: smtp.user, pass: smtp.pass },
-          });
+          const transporter = nodemailer.createTransport(smtpTransportOptions(smtp));
           await transporter.sendMail({
             from: smtp.from || smtp.user,
             to: reportConfig.notify.emailReportTo,
@@ -1056,8 +1052,12 @@ async function _mainBody() {
     .map(r => r.detail || '')
     .filter(u => u.startsWith('http'));
   if (manualUrls.length > 0) {
-    console.log(`\n🖥  Opening ${manualUrls.length} manual site(s) in browser…`);
-    openInBrowser(manualUrls);
+    const { open, more } = pickManualUrlsToOpen(manualUrls);
+    console.log(`\n🖥  Opening ${open.length} manual site(s) in browser…`);
+    openInBrowser(open);
+    if (more > 0) {
+      console.log(`   ${more} more manual site(s) not opened - see the manual entries in ${DRY_RUN ? 'the output above' : logFile}`);
+    }
   }
 
   // Print summary
