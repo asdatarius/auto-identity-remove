@@ -9,9 +9,11 @@
 #
 set -euo pipefail
 
-DATA_DIR="${AIDR_DATA:-/data}"
-export AIDR_CONFIG="${AIDR_CONFIG:-$DATA_DIR/config.json}"
-export AIDR_STATE="${AIDR_STATE:-$DATA_DIR/state.json}"
+DATA_DIR="${AIDR_HOME:-/data}"
+export AIDR_HOME="$DATA_DIR"
+export AIDR_DATA_DIR="${AIDR_DATA_DIR:-$DATA_DIR}"
+export AIDR_CONFIG_PATH="${AIDR_CONFIG_PATH:-$DATA_DIR/config.json}"
+export AIDR_STATE_PATH="${AIDR_STATE_PATH:-$DATA_DIR/state.json}"
 export AIDR_LOG_DIR="${AIDR_LOG_DIR:-$DATA_DIR/logs}"
 export HEADLESS="${HEADLESS:-1}"
 export HOME="$DATA_DIR"
@@ -26,12 +28,12 @@ mkdir -p "$DATA_DIR" "$AIDR_LOG_DIR" "$DATA_DIR/profile" 2>/dev/null || true
 
 # Seed config from the example on first boot - the run will exit early until
 # you fill it in, but this gives you a file to edit on the NAS volume.
-if [ ! -f "$AIDR_CONFIG" ]; then
-  echo "[entrypoint] no config at $AIDR_CONFIG - seeding from example."
-  echo "[entrypoint] >>> EDIT $AIDR_CONFIG with your details before the scheduled run. <<<"
-  cp /app/config.example.json "$AIDR_CONFIG" 2>/dev/null || true
+if [ ! -f "$AIDR_CONFIG_PATH" ]; then
+  echo "[entrypoint] no config at $AIDR_CONFIG_PATH - seeding from example."
+  echo "[entrypoint] >>> EDIT $AIDR_CONFIG_PATH with your details before the scheduled run. <<<"
+  cp /app/config.example.json "$AIDR_CONFIG_PATH" 2>/dev/null || true
 fi
-[ -f "$AIDR_STATE" ] || echo '{"optOuts":{}}' > "$AIDR_STATE" 2>/dev/null || true
+[ -f "$AIDR_STATE_PATH" ] || echo '{"optOuts":{}}' > "$AIDR_STATE_PATH" 2>/dev/null || true
 
 # supercronic crontab - output is teed to the data volume and to stdout.
 CRONTAB="/tmp/aidr.crontab"

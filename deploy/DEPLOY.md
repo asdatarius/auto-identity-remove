@@ -13,9 +13,9 @@ itself** (no host cron, no Docker socket).
 | NAS file permissions | runs as fixed uid 1001 | `PUID`/`PGID` env, ownership fixed at startup via `gosu` |
 | Notifications | iMessage (macOS) | webhook (ntfy/Slack/Discord) - set in `config.json` |
 
-Two tiny, backward-compatible source patches make this work: `lib/config.js` and
-`watcher.js` now read `AIDR_CONFIG` / `AIDR_STATE` / `AIDR_LOG_DIR` env vars
-(defaults unchanged for native use).
+Upstream's `lib/paths.js` resolves every runtime path from `AIDR_HOME` (plus the
+specific `AIDR_*_PATH` / `AIDR_*_DIR` overrides); the image sets `AIDR_HOME=/data` and
+`AIDR_DATA_DIR=/data`.
 
 ---
 

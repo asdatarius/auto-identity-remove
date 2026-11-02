@@ -43,9 +43,7 @@ function _getConfig() {
   }
 
   try {
-    // Honour the same AIDR_CONFIG override as lib/config.js - in a container
-    // config.json lives on the mounted data dir, not next to this file.
-    _cachedConfig = require(process.env.AIDR_CONFIG || './config.json');
+    _cachedConfig = require('./config.json');
   } catch (_) {
     _cachedConfig = { person: {}, persons: [], email: {} };
   }
@@ -67,15 +65,71 @@ const config = new Proxy({}, {
  */
 function _primaryPerson() {
   const cfg = _getConfig();
-  if (cfg.person) return cfg.person;
-  if (Array.isArray(cfg.persons) && cfg.persons.length > 0) return cfg.persons[0];
+  // persons[] wins when both keys exist, exactly like getPersonsFromConfig() in
+  // lib/config.js. The dashboard's Config tab writes a blank `person` onto a
+  // persons[] config when it saves, and the old person-first order then built
+  // every search URL from an empty name ("search?q=&type=pp"), which a
+  // --verify run reads as "verified clear" for every broker.
+  if (Array.isArray(cfg.persons) && cfg.persons.length > 0 && _isPersonObject(cfg.persons[0])) {
+    return cfg.persons[0];
+  }
+  if (_isPersonObject(cfg.person) && !_isBlankPerson(cfg.person)) return cfg.person;
   return {};
+}
+
+function _isPersonObject(p) {
+  return p !== null && typeof p === 'object' && !Array.isArray(p);
+}
+
+// A person whose every value is empty carries no identity. Treat it as absent.
+function _isBlankPerson(p) {
+  return Object.values(p).every(v => v == null || String(v).trim() === '');
 }
 
 // Never interpolate the literal string "undefined" into a URL or a form value.
 // A missing field becomes empty, which fails a lookup honestly (notFound)
 // instead of searching brokers for a person named "undefined".
 const enc = s => encodeURIComponent(s == null ? '' : s);
+
+// A bare input[name*="name" i] also matches firstname, lastname, company_name,
+// username and nickname, and fillForm takes the first match, so the person's
+// full name could land in a company or username box (BRK-8). These are the
+// words that make a "*name*" field somebody else's name or not a person's name.
+// :not() is evaluated per attribute, so the placeholder variant excludes
+// "Last name" / "Company name" placeholders the same way.
+const NOT_A_FULL_NAME = [
+  'first', 'last', 'fname', 'lname', 'surname', 'family', 'given', 'middle',
+  'user', 'nick', 'company', 'business', 'organi', 'file', 'maiden',
+];
+const fullNameInput = (attr) =>
+  `input[${attr}*="name" i]${NOT_A_FULL_NAME.map(w => `:not([${attr}*="${w}" i])`).join('')}`;
+
+/**
+ * Split a phone number into the two shapes phone-lookup sites ask for.
+ *
+ *   national - 10 digits, for US forms whose country picker defaults to +1
+ *   e164     - "+<country code><number>", for caller-ID apps that want the
+ *              country code typed in
+ *
+ * Either is '' when it cannot be derived honestly: a non-US/CA number written
+ * without a leading "+" has no knowable country code, so it is not guessed.
+ *
+ * @param {string} [phone]
+ * @param {string} [country]  ISO 3166-1 alpha-2, default 'US'
+ * @returns {{ national: string, e164: string }}
+ */
+function phoneParts(phone, country) {
+  const raw = phone == null ? '' : String(phone).trim();
+  const digits = raw.replace(/\D/g, '');
+  const nanp = ['US', 'CA'].includes(String(country || 'US').toUpperCase());
+
+  if (nanp && digits.length === 10) return { national: digits, e164: `+1${digits}` };
+  if (nanp && digits.length === 11 && digits[0] === '1') {
+    return { national: digits.slice(1), e164: `+${digits}` };
+  }
+  if (raw.startsWith('+') && digits.length >= 8) return { national: '', e164: `+${digits}` };
+  return { national: '', e164: '' };
+}
 
 /**
  * Build the broker list for one person.
@@ -96,6 +150,11 @@ function buildBrokers(person) {
   const s = (v) => (v == null ? '' : String(v));
   const F = s(p.firstName), L = s(p.lastName), N = s(p.fullName);
   const ST = s(p.state), C = s(p.city), E = s(p.email), Z = s(p.zip);
+  const { national: PN, e164: PE } = phoneParts(p.phone, p.country);
+  // Phone-keyed forms cannot do anything without the number, so a person
+  // without one gets a logged skip instead of an empty submission every month.
+  const needsPN = PN ? undefined : 'no US phone number in config.json (person.phone)';
+  const needsPE = PE ? undefined : 'no phone number with a country code in config.json (e.g. +44 20 7946 0000)';
 
   return [
 
@@ -122,6 +181,7 @@ function buildBrokers(person) {
     method: 'search-form',
     searchUrl: `https://www.spokeo.com/search?q=${enc(N)}&type=pp&state=${ST}`,
     listingPattern: /spokeo\.com\/[^/]+\/[^/]+\/[^/]+-p\d+/i,
+    lastName: L,
     optOutUrl: 'https://www.spokeo.com/optout',
     formFields: { 'input[name="email"]': E },
     submitSelector: 'button[type="submit"],input[type="submit"]',
@@ -136,6 +196,7 @@ function buildBrokers(person) {
     method: 'search-form',
     searchUrl: `https://www.whitepages.com/name/${enc(F)}-${enc(L)}/${ST}`,
     listingPattern: /whitepages\.com\/people\//i,
+    lastName: L,
     optOutUrl: 'https://www.whitepages.com/suppression-requests',
     formFields: { 'input[name="name"]': N, 'input[name="email"]': E },
     submitSelector: 'button[type="submit"]',
@@ -150,8 +211,9 @@ function buildBrokers(person) {
     method: 'search-form',
     searchUrl: `https://www.fastpeoplesearch.com/name/${enc(F)}-${enc(L)}_${ST}`,
     listingPattern: /fastpeoplesearch\.com\/name\//i,
+    lastName: L,
     optOutUrl: 'https://www.fastpeoplesearch.com/optout',
-    formFields: { 'input[id="optout_name"],input[name*="name"]': N, 'input[type="email"]': E },
+    formFields: { [`input[id="optout_name"],${fullNameInput('name')}`]: N, 'input[type="email"]': E },
     submitSelector: 'button[type="submit"]',
     captchaLikely: false,
     priority: 1,
@@ -162,7 +224,7 @@ function buildBrokers(person) {
     name: 'TruePeopleSearch',
     method: 'direct-form',
     optOutUrl: 'https://www.truepeoplesearch.com/removal',
-    formFields: { 'input[name*="name"],input[placeholder*="name" i]': N, 'input[type="email"]': E },
+    formFields: { [`${fullNameInput('name')},${fullNameInput('placeholder')}`]: N, 'input[type="email"]': E },
     submitSelector: 'button[type="submit"]',
     captchaLikely: false,
     priority: 1,
@@ -171,10 +233,16 @@ function buildBrokers(person) {
   },
 
   {
+    // direct-form since BRK-9. This entry used to be search-form with
+    // listingPattern /beenverified\.com/, which matches the site's own logo and
+    // nav links, so the "listing" it found was always the homepage and --verify
+    // could never report anything but "still listed". Its searchUrl was also the
+    // opt-out search FORM, a page with no person-specific links, so a tighter
+    // pattern alone would have turned that into "never listed" (opt-out skipped,
+    // --verify "verified clear"). The page is the form: fill it, nothing to look
+    // up first, and --verify reports it unverifiable instead of guessing.
     name: 'BeenVerified',
-    method: 'search-form',
-    searchUrl: 'https://www.beenverified.com/app/optout/search',
-    listingPattern: /beenverified\.com/i,
+    method: 'direct-form',
     optOutUrl: 'https://www.beenverified.com/app/optout/search',
     formFields: { 'input[name="firstName"]': F, 'input[name="lastName"]': L, 'select[name="state"]': ST },
     submitSelector: 'button[type="submit"]',
@@ -189,6 +257,7 @@ function buildBrokers(person) {
     method: 'search-form',
     searchUrl: `https://radaris.com/p/${enc(F)}/${enc(L)}/`,
     listingPattern: /radaris\.com\/p\//i,
+    lastName: L,
     optOutUrl: 'https://radaris.com/control/privacy',
     formFields: { 'input[name*="first"],input[placeholder*="first" i]': F, 'input[name*="last"],input[placeholder*="last" i]': L, 'input[type="email"]': E },
     submitSelector: 'button[type="submit"]',
@@ -235,6 +304,7 @@ function buildBrokers(person) {
     method: 'search-form',
     searchUrl: `https://www.mylife.com/find-people/results.pubview?searchtype=PEOPLE&firstname=${enc(F)}&lastname=${enc(L)}&state=${ST}`,
     listingPattern: /mylife\.com\/[^/]+\/[^/]+-\d+\.html/i,
+    lastName: L,
     optOutUrl: 'https://www.mylife.com/privacy-policy/',
     formFields: { 'input[type="email"]': E },
     submitSelector: 'button[type="submit"]',
@@ -248,6 +318,7 @@ function buildBrokers(person) {
     method: 'search-form',
     searchUrl: `https://nuwber.com/person/search?name=${enc(N)}&state=${ST}`,
     listingPattern: /nuwber\.com\/person\//i,
+    lastName: L,
     optOutUrl: 'https://nuwber.com/removal/link',
     formFields: { 'input[type="email"]': E },
     submitSelector: 'button[type="submit"]',
@@ -283,7 +354,7 @@ function buildBrokers(person) {
     name: 'ThatsThem',
     method: 'direct-form',
     optOutUrl: 'https://thatsthem.com/optout',
-    formFields: { 'input[name*="name" i]': N, 'input[name*="email" i]': E },
+    formFields: { [fullNameInput('name')]: N, 'input[name*="email" i]': E },
     submitSelector: 'button[type="submit"]',
     captchaLikely: false,
     priority: 2,
@@ -294,10 +365,17 @@ function buildBrokers(person) {
   {
     name: 'USPhonebook',
     method: 'direct-form',
-    optOutUrl: 'https://www.usphonebook.com/opt-out',
-    formFields: { 'input[name*="name" i]': N, 'input[name*="email" i]': E },
-    submitSelector: 'button[type="submit"]',
-    captchaLikely: false,
+    // /opt-out redirects here. The page also carries name and phone SEARCH
+    // boxes, so the selectors name the removal form's own fields.
+    optOutUrl: 'https://www.usphonebook.com/removal',
+    formFields: {
+      '#subject-firstname': F,
+      '#subject-lastname': L,
+      '#subject-email': E,
+      '#agreement': 'yes',
+    },
+    submitSelector: '#BRP',
+    captchaLikely: true,
     priority: 2,
     usOnly: true,
   },
@@ -322,7 +400,7 @@ function buildBrokers(person) {
     name: 'SearchPeopleFree',
     method: 'direct-form',
     optOutUrl: 'https://www.searchpeoplefree.com/opt-out',
-    formFields: { 'input[name*="name" i]': N, 'input[name*="email" i]': E },
+    formFields: { [fullNameInput('name')]: N, 'input[name*="email" i]': E },
     submitSelector: 'button[type="submit"]',
     captchaLikely: false,
     priority: 2,
@@ -334,7 +412,7 @@ function buildBrokers(person) {
     name: 'PeopleSearchNow',
     method: 'direct-form',
     optOutUrl: 'https://www.peoplesearchnow.com/opt-out',
-    formFields: { 'input[name*="name" i]': N, 'input[name*="email" i]': E },
+    formFields: { [fullNameInput('name')]: N, 'input[name*="email" i]': E },
     submitSelector: 'button[type="submit"]',
     captchaLikely: false,
     priority: 2,
@@ -358,7 +436,7 @@ function buildBrokers(person) {
     name: 'SocialCatfish',
     method: 'direct-form',
     optOutUrl: 'https://socialcatfish.com/opt-out/',
-    formFields: { 'input[name*="name" i]': N, 'input[name*="email" i]': E },
+    formFields: { [fullNameInput('name')]: N, 'input[name*="email" i]': E },
     submitSelector: 'button[type="submit"]',
     captchaLikely: false,
     priority: 2,
@@ -559,7 +637,7 @@ function buildBrokers(person) {
     name: 'Experian (marketing)',
     method: 'direct-form',
     optOutUrl: 'https://www.experian.com/privacy/opting_out.html',
-    formFields: { 'input[name*="first" i]': F, 'input[name*="last" i]': L, 'input[name*="addr" i]': C, 'input[name*="zip" i]': Z },
+    formFields: { 'input[name*="first" i]': F, 'input[name*="last" i]': L, 'input[name*="city" i]': C, 'input[name*="zip" i]': Z },
     submitSelector: 'button[type="submit"],input[type="submit"]',
     captchaLikely: false,
     priority: 2,
@@ -573,6 +651,98 @@ function buildBrokers(person) {
     submitSelector: 'button[type="submit"]',
     captchaLikely: false,
     priority: 2,
+  },
+
+  // ═══ Phone numbers - caller-ID apps, reverse phone lookups, Do Not Call ═══
+  // These are keyed by the phone number, not the name. Caller-ID apps build
+  // their directories from uploaded contact books, and reverse-lookup sites are
+  // where call lists get a name for a number.
+
+  {
+    // After the reCAPTCHA, Truecaller asks you to prove you own the number by
+    // sending an SMS or WhatsApp message from it, which no script can do.
+    name: 'Truecaller',
+    method: 'manual',
+    optOutUrl: 'https://www.truecaller.com/unlisting',
+    priority: 1,
+    notes: 'Click "No, I want to unlist", enter your number with its country code (e.g. +15125550000), solve the reCAPTCHA, then send the SMS or WhatsApp message it shows from that phone. Unlisting cannot be undone and takes up to 24 hours.',
+  },
+
+  {
+    name: 'Sync.ME',
+    method: 'direct-form',
+    optOutUrl: 'https://sync.me/unsubscribe/',
+    // A modal cookie <dialog> makes the form inert until it is dismissed.
+    // Its Turnstile passes on its own in a headed browser (token within ~3s)
+    // but never headless, where the site answers "reCAPTCHA is required".
+    preClickSelector: 'dialog[open] button:has-text("Accept All Cookies")',
+    formFields: { '#name': N, '#email': E, '#phoneNumber': PN },
+    submitSelector: 'button[type="submit"]:has-text("Send")',
+    captchaLikely: true,
+    priority: 1,
+    // The country picker defaults to +1 and is not driven yet.
+    usOnly: true,
+    skipReason: needsPN,
+  },
+
+  {
+    name: 'CallApp',
+    method: 'direct-form',
+    optOutUrl: 'https://callapp.com/how-to/unlist-phone-number',
+    formFields: { 'input[name="phone"]': PE, 'input[name="email"]': E },
+    submitSelector: 'button[type="submit"]:has-text("Send")',
+    captchaLikely: false,
+    priority: 2,
+    skipReason: needsPE,
+  },
+
+  {
+    name: 'NumLookup',
+    method: 'direct-form',
+    optOutUrl: 'https://www.numlookup.com/opt_out',
+    formFields: { 'input[name="optout_number"]': PN },
+    submitSelector: 'input[type="submit"]',
+    captchaLikely: false,
+    priority: 2,
+    // The country <select> defaults to USA and is not driven yet.
+    usOnly: true,
+    skipReason: needsPN,
+  },
+
+  {
+    // Hiya supplies caller ID to Samsung phones and several US carriers.
+    name: 'Hiya',
+    method: 'email',
+    emailTo: 'DPO@hiya.com',
+    emailSubjectPrefix: 'Advanced Data Management',
+    priority: 1,
+  },
+
+  {
+    // Eyecon's privacy policy (Annex B) gives this address for removing a
+    // number from its search database.
+    name: 'Eyecon',
+    method: 'email',
+    emailTo: 'privacy@instabridge.com',
+    priority: 2,
+  },
+
+  {
+    name: 'National Do Not Call Registry',
+    method: 'manual',
+    optOutUrl: 'https://www.donotcall.gov/register.html',
+    priority: 1,
+    usOnly: true,
+    notes: 'One-time and free: registrations never expire. Click "Register Your Phone", enter the number and your email, Submit, then Register. Click the link in the email from Register@donotcall.gov within 72 hours. Stops legitimate telemarketers, not scammers. Once registered, add this entry to your allowlist so it stops reopening.',
+  },
+
+  {
+    name: 'Spy Dialer',
+    method: 'manual',
+    optOutUrl: 'https://www.spydialer.com/consumers/wizards.aspx',
+    priority: 2,
+    usOnly: true,
+    notes: 'Multi-step wizard (state first, then the number) behind reCAPTCHA Enterprise.',
   },
 
   // ═══ Email-based opt-outs ═════════════════════════════════════════════════

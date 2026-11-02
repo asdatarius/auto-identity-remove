@@ -22,9 +22,8 @@ Your image is **upstream + your changes**. The changes live in normal source fil
 
 | File | Change |
 |------|--------|
-| `lib/config.js`, `generic-runner.js`, `lib/doctor.js`, `watcher.js` | honour `AIDR_CONFIG` / `AIDR_STATE` / `AIDR_LOG_DIR` env paths |
-| `watcher.js` | email opt-out moved outside the per-person loop (no N× duplicate emails) |
-| `lib/notify.js` | native Telegram support |
+| `lib/notify.js`, `watcher.js` | native Telegram support; Windows toast in `dispatchNotify` |
+| `lib/serp-scan.js` | an unwritable history file warns instead of crashing the run |
 | `deploy/` | the whole NAS/Portainer overlay (Dockerfile, entrypoint, compose, docs) |
 | `.github/workflows/deploy-image.yml`, `upstream-sync.yml` | this CI |
 

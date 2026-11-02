@@ -50,7 +50,7 @@ RUN set -eux; \
     echo "${SC_SHA}  /usr/local/bin/supercronic" | sha256sum -c -; \
     chmod +x /usr/local/bin/supercronic
 
-# App source (config.js/watcher.js honour AIDR_* path env vars)
+# App source (lib/paths.js resolves every runtime path from the AIDR_* env vars)
 COPY . .
 COPY deploy/entrypoint.sh /usr/local/bin/entrypoint.sh
 COPY deploy/run-now.sh    /usr/local/bin/run-now
@@ -58,10 +58,11 @@ RUN chmod +x /usr/local/bin/entrypoint.sh /usr/local/bin/run-now
 
 # AIDR_* paths are set as image ENV (not just derived in the entrypoint) so that
 # `docker exec` / Portainer Console / `run-now` inherit them too.
-ENV AIDR_DATA=/data \
-    AIDR_CONFIG=/data/config.json \
-    AIDR_STATE=/data/state.json \
-    AIDR_LOG_DIR=/data/logs \
+# AIDR_HOME puts config.json, state.json and logs/ under /data; AIDR_DATA_DIR
+# keeps the history caches (serp-history.json etc.) directly in /data rather
+# than /data/data.
+ENV AIDR_HOME=/data \
+    AIDR_DATA_DIR=/data \
     HEADLESS=1 \
     CRON_SCHEDULE="0 9 1 * *" \
     RUN_ON_START=false \
