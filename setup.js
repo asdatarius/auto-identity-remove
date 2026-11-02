@@ -20,15 +20,6 @@ const { Writable } = require('stream');
 const { execSync } = require('child_process');
 
 const { installSchedule } = require('./lib/scheduler');
-<<<<<<< HEAD
-const { encryptConfigToDisk } = require('./lib/config');
-
-// Honour the same AIDR_* overrides as lib/config.js - setup must write the
-// config to wherever the watcher will actually read it.
-const CONFIG_PATH = process.env.AIDR_CONFIG || path.join(__dirname, 'config.json');
-const CONFIG_ENC_PATH = CONFIG_PATH + '.enc';
-const STATE_PATH  = process.env.AIDR_STATE  || path.join(__dirname, 'state.json');
-=======
 const { resolvePaths } = require('./lib/paths');
 const { mkdirPrivate } = require('./lib/private-fs');
 const {
@@ -36,7 +27,6 @@ const {
   CONFIG_PATH, CONFIG_ENC_PATH, STATE_PATH,
 } = require('./lib/config');
 const secretsLib = require('./lib/secrets');
->>>>>>> upstream/main
 
 /**
  * Read the existing config so setup can offer current values as defaults.

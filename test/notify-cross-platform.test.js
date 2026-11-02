@@ -129,10 +129,7 @@ test('desktopNotify: returns without throwing even when all underlying calls fai
 test('openInBrowser: on linux calls xdg-open via spawn for each URL', () => {
   const { calls, restore } = stubSpawn();
 
-<<<<<<< HEAD
-=======
   // A display is required on Linux (CORE-11); inject one so this passes on a headless CI box too.
->>>>>>> upstream/main
   notify.openInBrowser(['https://a.com', 'https://b.com'], 'linux', { DISPLAY: ':0' });
 
   restore();

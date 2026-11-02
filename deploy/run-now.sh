@@ -15,7 +15,7 @@ set -e
 # docker exec inherits the image env, NOT the entrypoint's exports - and gosu
 # preserves HOME. Without this, the seeded config's "~/.config/..." profileDir
 # expands to /root/... and mkdir as PUID fails EACCES. Mirror entrypoint.sh.
-export HOME="${AIDR_DATA:-/data}"
+export HOME="${AIDR_HOME:-/data}"
 if [ "$(id -u)" = "0" ]; then
   exec gosu "${PUID:-1000}:${PGID:-1000}" node /app/watcher.js "$@"
 else

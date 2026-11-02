@@ -41,17 +41,10 @@ const fs   = require('fs');
 const os   = require('os');
 const crypto = require('crypto');
 
-<<<<<<< HEAD
-// Honour the same AIDR_* path overrides as lib/config.js so a container can
-// point config/state at a mounted data dir. Defaults unchanged for native use.
-const CONFIG_PATH     = process.env.AIDR_CONFIG || path.join(__dirname, 'config.json');
-const STATE_PATH      = process.env.AIDR_STATE  || path.join(__dirname, 'state.json');
-=======
 // The three datasets below ship with the app and always load from it. The feeds
 // cache is written by --update-brokers, so it lives in the writable data
 // directory (AIDR_HOME/data when set), the same place lib/feeds.js writes it.
 const { resolvePaths } = require('./lib/paths');
->>>>>>> upstream/main
 const MARKUP_PATH     = path.join(__dirname, 'data', 'markup-parsed.json');
 const BADBOOL_PATH    = path.join(__dirname, 'data', 'badbool-extra.json');
 const FEEDS_PATH      = path.join(resolvePaths().data, 'feeds-brokers.json');

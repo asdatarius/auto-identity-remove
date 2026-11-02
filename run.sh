@@ -35,11 +35,6 @@ done
 
 cd "$(dirname "$0")"
 
-<<<<<<< HEAD
-CONFIG_FILE="${AIDR_CONFIG:-config.json}"
-if [ ! -f "$CONFIG_FILE" ]; then
-  echo "❌ $CONFIG_FILE not found. Run: node setup.js"
-=======
 # AIDR_HOME is where every runtime file lives when it is set (lib/paths.js); a
 # specific variable still wins over it. With neither, the project directory.
 CONFIG_PLAIN="${AIDR_CONFIG_PATH:-${AIDR_HOME:+$AIDR_HOME/}config.json}"
@@ -56,7 +51,6 @@ elif [ -f "$CONFIG_PLAIN" ]; then
   fi
 else
   echo "ERROR: no config found ($CONFIG_PLAIN or $CONFIG_ENC). Run: node setup.js" >&2
->>>>>>> upstream/main
   exit 1
 fi
 

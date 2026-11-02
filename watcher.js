@@ -24,11 +24,7 @@ const ARGS = require('./lib/args').parseWatcherArgsOrExit();
 const { STATE_PATH, CONFIG_PATH, CONFIG_ENC_PATH, RECHECK_DAYS, loadConfig, loadState, resetState, saveState, recordSuccess, setDryRun, getPersonsFromConfig, loadCheckpoint, saveCheckpoint, clearCheckpoint, findResumeIndex, planResume, readEntry, validateRunnableConfig, stateProblem } = require('./lib/config');
 const { results, logResult, buildSummary, setDefunctBrokers, setCurrentPerson, setStateForSummary, setJournal } = require('./lib/logger');
 const { findDefunct, DEFUNCT_THRESHOLD } = require('./lib/defunct');
-<<<<<<< HEAD
-const { desktopNotify, openInBrowser, pickManualUrlsToOpen, dispatchNotify } = require('./lib/notify');
-=======
-const { sendText, desktopNotify, sendWebhook, dispatchNotify, openInBrowser, canOpenBrowser, pickManualUrlsToOpen, manualUrlsFromResults } = require('./lib/notify');
->>>>>>> upstream/main
+const { sendText, desktopNotify, sendWebhook, sendTelegram, dispatchNotify, openInBrowser, canOpenBrowser, pickManualUrlsToOpen, manualUrlsFromResults } = require('./lib/notify');
 const brokerRunner = require('./lib/broker-runner');
 const { sendOptOutEmails } = require('./lib/email');
 const { smtpTransportOptions } = require('./lib/smtp');
@@ -828,11 +824,7 @@ function modeInstallScheduler() {
   const { installScheduleForPlatform } = require('./lib/scheduler');
   const { getPlatform } = require('./lib/platform');
   const scriptPath = path.join(__dirname, 'run.sh');
-<<<<<<< HEAD
-  const logDir     = process.env.AIDR_LOG_DIR || path.join(__dirname, 'logs');
-=======
   const logDir     = PATHS.logs;
->>>>>>> upstream/main
   const platform   = getPlatform();
   const result     = installScheduleForPlatform({ platform, scriptPath, logDir });
   // The OS scheduler may have refused (a crontab write that failed, a launchctl
@@ -849,13 +841,6 @@ function modeInstallScheduler() {
   process.exit(0);
 }
 
-<<<<<<< HEAD
-const config = loadConfig();
-const profileDir = (config.profileDir || '~/.config/auto-identity-remove')
-  .replace(/^~(?=\/|$)/, os.homedir());
-const state = loadState();
-const persons = getPersonsFromConfig(config);
-=======
 // ── --schedule-status: is the monthly job installed, and how did its last run end? ──
 // Read-only: it asks the OS scheduler and reads last-run.json, nothing else. Exit
 // status is for scripts: 0 installed, active and the last full run did not fail,
@@ -950,7 +935,6 @@ async function modePurge() {
   console.log('');
   process.exit(done.errors.length > 0 ? 1 : 0);
 }
->>>>>>> upstream/main
 
 // -- --know: fire right-to-know (data access) requests to email brokers, exit --
 // No browser needed - email-method brokers only. Acquires the state lock since
@@ -988,60 +972,6 @@ async function modeKnow({ config, persons, state }) {
         submissionEmailFor: (person) => emails.get(person),
       });
 
-<<<<<<< HEAD
-brokerRunner.configure({ dryRun: DRY_RUN, preview: PREVIEW, person: persons[0], capsolver: config.capsolver, noCapsolver: NO_CAPSOLVER, snapshot: SNAPSHOT, personCount: persons.length, config });
-
-// Detect brokers that have been consistently unreachable across recent runs.
-// Defunct brokers still run - the warning is informational so the user can
-// prune stale entries from brokers.js if the site is truly gone.
-const defunctNames = findDefunct(state.optOuts || {});
-if (defunctNames.length > 0) {
-  setDefunctBrokers(defunctNames);
-  console.log(`\n⚰️  ${defunctNames.length} broker(s) flagged as defunct (${DEFUNCT_THRESHOLD}+ consecutive unreachable errors):`);
-  console.log(`   ${defunctNames.join(', ')}`);
-  console.log('   These will still run. Remove from brokers.js if site is gone.\n');
-}
-
-// Try local node_modules first, then fall back to global openclaw install
-let chromium;
-try {
-  ({ chromium } = require('playwright'));
-} catch (_) {
-  const fallback = path.join(os.homedir(), '.openclaw', 'plugins', 'node_modules', 'playwright');
-  ({ chromium } = require(fallback));
-}
-
-const isMac = process.platform === 'darwin';
-
-if (process.env.PLAYWRIGHT_BROWSERS_PATH === undefined) {
-  process.env.PLAYWRIGHT_BROWSERS_PATH = isMac
-    ? path.join(os.homedir(), 'Library', 'Caches', 'ms-playwright')
-    : path.join(os.homedir(), '.cache', 'ms-playwright');
-}
-
-const LOG_DIR = process.env.AIDR_LOG_DIR || path.join(__dirname, 'logs');
-fs.mkdirSync(LOG_DIR, { recursive: true });
-// Timestamped to the second (B8): two runs on the same day must not overwrite
-// each other, otherwise loadPreviousLog/diffResults can never diff intraday runs.
-const logFile = path.join(LOG_DIR, `run-${timestampForFilename(new Date().toISOString())}.json`);
-const stamp = () => new Date().toLocaleTimeString();
-
-const LOCK_PATH = STATE_PATH + '.lock';
-
-async function main() {
-  // Acquire process lock to prevent concurrent runs racing on state.json
-  try {
-    lock.acquire(LOCK_PATH);
-  } catch (err) {
-    const pidMatch = err.message.match(/pid (\d+)/);
-    const pid = pidMatch ? pidMatch[1] : '?';
-    console.error(`Another instance is running, pid=${pid}. Exiting.`);
-    process.exit(1);
-  }
-
-  try {
-    return await _mainBody();
-=======
       console.log('\n' + '='.repeat(54));
       console.log('Right-to-know results - ' + new Date().toLocaleString());
       console.log('='.repeat(54));
@@ -1054,7 +984,6 @@ async function main() {
       console.log(`\n  ${pending.length} prior request(s) now past 45 days (run --know-status for detail).`);
       console.log('='.repeat(54) + '\n');
     }
->>>>>>> upstream/main
   } finally {
     guard.release();
   }
@@ -1361,33 +1290,6 @@ async function runSubmissions(contexts, { brokers, persons, state, config, guard
     }
   }
 
-<<<<<<< HEAD
-  // Resolve masked/relay submission emails per person up front (cached in
-  // state.relayAliases by lib/relay). Returns person.email unchanged when no
-  // relay is configured, so existing setups are unaffected. Persisted later
-  // by the run's saveState(). Resolved before the email block so email
-  // opt-outs use the same alias as form submissions.
-  const submissionEmails = new Map();
-  for (const person of persons) {
-    submissionEmails.set(person, await getSubmissionEmail({ config, person, state }));
-  }
-
-  // Email opt-outs (no browser needed - skipped in verify mode).
-  // Called once before the per-person loop: sendOptOutEmails already iterates
-  // all persons internally, so calling it inside the loop would send N× the
-  // emails for an N-person config.
-  // Also skipped in dry-run/preview: these are real SMTP sends, and dry-run
-  // suppresses state writes, so a send here would both violate the "nothing
-  // is submitted" promise and be re-sent on the next real run.
-  if (!VERIFY && !DRY_RUN) {
-    console.log('── Email opt-outs ─────────────────────────────────────────');
-    await sendOptOutEmails(brokers, config, undefined, { submissionEmailFor: (p) => submissionEmails.get(p) });
-  } else if (!VERIFY) {
-    console.log('── Email opt-outs skipped (dry-run/preview) ───────────────');
-  }
-
-  for (const person of persons) {
-=======
   // ONE include test for the whole run: the email opt-outs, the explicit forms
   // and the ~490 generic brokers all honour --only / --skip / --retry-failed.
   // They used to filter only the explicit list, so `--only Spokeo` still sent
@@ -1451,7 +1353,6 @@ async function runSubmissions(contexts, { brokers, persons, state, config, guard
     // not one anonymous list (CFG-13).
     setCurrentPerson(person);
 
->>>>>>> upstream/main
     if (persons.length > 1) {
       console.log(`\n${'='.repeat(54)}`);
       console.log(`Running for: ${personName(person)}`);
@@ -1459,35 +1360,13 @@ async function runSubmissions(contexts, { brokers, persons, state, config, guard
     }
 
     const submissionEmail = submissionEmails.get(person);
-<<<<<<< HEAD
-    if (submissionEmail && submissionEmail !== person.email) {
-      console.log(`   Using masked email for submissions: ${submissionEmail}`);
-    }
-
-    brokerRunner.configure({ dryRun: DRY_RUN, preview: PREVIEW, person, capsolver: config.capsolver, noCapsolver: NO_CAPSOLVER, snapshot: SNAPSHOT, personCount: persons.length, config, submissionEmail });
-=======
     brokerRunner.configure({ dryRun: DRY_RUN, preview: PREVIEW, person, personIndex: index, capsolver: config.capsolver, noCapsolver: NO_CAPSOLVER, snapshot: SNAPSHOT, personCount: persons.length, config, submissionEmail, partial: FILTERED });
->>>>>>> upstream/main
 
     // Rebuild the broker list for THIS person. brokers.js interpolates names,
     // city, state, zip and email into searchUrl and formFields, so reusing the
     // module-level array would submit persons[0]'s PII on every iteration.
     const personBrokers = brokers.forPerson(person);
 
-<<<<<<< HEAD
-    const filterOpts = {
-      only:             ONLY_ARG,
-      skip:             SKIP_ARG,
-      retryFailedFromLog,
-    };
-
-    let sorted = applyFilter(
-      [...personBrokers]
-        .filter(b => b.method !== 'email')
-        .sort((a, b) => (a.priority || 9) - (b.priority || 9)),
-      filterOpts
-    );
-=======
     // Email opt-outs (no browser needed).
     // onlyPerson restricts this call to the current person - sendOptOutEmails
     // otherwise re-sends to every person in config on every call, so calling
@@ -1499,7 +1378,6 @@ async function runSubmissions(contexts, { brokers, persons, state, config, guard
     let sorted = personBrokers
       .filter(b => b.method !== 'email' && include(b.name))
       .sort((a, b) => (a.priority || 9) - (b.priority || 9));
->>>>>>> upstream/main
 
     if (RESUME) {
       // Only the person the explicit checkpoint belongs to resumes mid-list; planResume
@@ -1746,19 +1624,6 @@ async function runSubmissions(contexts, { brokers, persons, state, config, guard
   console.log(DRY_RUN ? '\n📄 Log: not written (dry run)' : `\n📄 Log: ${logFile}`);
   console.log(DRY_RUN ? '💾 State: not saved (dry run)\n' : `💾 State: ${STATE_PATH}\n`);
 
-<<<<<<< HEAD
-  // Notify across all configured channels: macOS iMessage + toast, Linux toast,
-  // and (any OS) webhook + Telegram. dispatchNotify reads config.notify, so it
-  // covers headless NAS runs where iMessage/desktop toasts don't exist.
-  const totalProcessed = results.succeeded.length + results.skipped.length + results.notFound.length + results.captchaFailed.length + results.manual.length + results.errors.length;
-  const short = `🔒 Privacy Watcher (${new Date().toLocaleDateString()}):\n✅ Removed: ${results.succeeded.length}\n⏭  Skipped: ${results.skipped.length}\n📋 Manual: ${results.captchaFailed.length + results.manual.length}\n📊 Total: ${totalProcessed} brokers checked`;
-  await dispatchNotify(short, config);
-}
-
-main().catch(async err => {
-  console.error('\nFatal:', err.message);
-  try { await dispatchNotify(`❌ Privacy Watcher crashed: ${err.message.slice(0, 100)}`, config); } catch (_) {}
-=======
   // A dry run or preview must not text anyone, raise a desktop notification or
   // POST the webhook.
   if (DRY_RUN) return null;
@@ -1792,6 +1657,7 @@ main().catch(async err => {
   // notify.webhook is documented as POSTed after every run; only serp-watch ever
   // sent it (CLI2-3). Awaited, with its own deadline (lib/notify.js).
   if (config.notify && config.notify.webhook) await sendWebhook(config.notify.webhook, short);
+  if (config.notify && config.notify.telegram) await sendTelegram(config.notify.telegram, short);
   return end;
 }
 
@@ -1884,6 +1750,5 @@ dispatch().catch(async err => {
       await dispatchNotify(`❌ Privacy Watcher crashed: ${String(err && err.message).slice(0, 100)}`, { notify: notifyConfig });
     } catch (_) { /* a notification that fails must not mask the crash */ }
   }
->>>>>>> upstream/main
   process.exit(1);
 });
