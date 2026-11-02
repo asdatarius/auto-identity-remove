@@ -129,6 +129,10 @@ test('desktopNotify: returns without throwing even when all underlying calls fai
 test('openInBrowser: on linux calls xdg-open via spawn for each URL', () => {
   const { calls, restore } = stubSpawn();
 
+<<<<<<< HEAD
+=======
+  // A display is required on Linux (CORE-11); inject one so this passes on a headless CI box too.
+>>>>>>> upstream/main
   notify.openInBrowser(['https://a.com', 'https://b.com'], 'linux', { DISPLAY: ':0' });
 
   restore();
@@ -163,7 +167,7 @@ test('openInBrowser: on headless linux (no DISPLAY/WAYLAND_DISPLAY) skips spawni
 
 // ─── openInBrowser: win32 ────────────────────────────────────────────────────
 
-test('openInBrowser: on win32 uses cmd /c start with empty title argument', () => {
+test('openInBrowser: on win32 uses rundll32 FileProtocolHandler with no shell (CLI2-6)', () => {
   const { calls, restore } = stubSpawn();
 
   notify.openInBrowser(['https://example.com'], 'win32');
@@ -171,14 +175,8 @@ test('openInBrowser: on win32 uses cmd /c start with empty title argument', () =
   restore();
 
   assert.equal(calls.length, 1);
-  assert.equal(calls[0].cmd, 'cmd');
-  assert.ok(calls[0].args.includes('/c'), 'should include /c');
-  assert.ok(calls[0].args.includes('start'), 'should include start');
-  // The empty title arg must be present before the URL
-  const urlIdx = calls[0].args.indexOf('https://example.com');
-  const emptyTitleIdx = calls[0].args.indexOf('');
-  assert.ok(emptyTitleIdx !== -1, 'should have empty title argument');
-  assert.ok(emptyTitleIdx < urlIdx, 'empty title should come before the URL');
+  assert.equal(calls[0].cmd, 'rundll32');
+  assert.deepEqual(calls[0].args, ['url.dll,FileProtocolHandler', 'https://example.com']);
 });
 
 // ─── openInBrowser: error swallowing ─────────────────────────────────────────
