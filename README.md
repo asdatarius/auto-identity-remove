@@ -1,6 +1,8 @@
 # auto-identity-remove
 
 ![CI](https://github.com/stephenlthorn/auto-identity-remove/actions/workflows/test.yml/badge.svg)
+[![Hacker News points via HackerGit](https://hackergit.org/badge/stephenlthorn/auto-identity-remove.svg?style=card)](https://news.ycombinator.com/item?id=48178184)
+[![brokers ok](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fstephenlthorn%2Fauto-identity-remove%2Fmain%2Fdata%2Fbroker-health.json&query=%24.summary.ok&label=brokers%20ok&cacheSeconds=3600)](STATUS.md) [![brokers checked](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fstephenlthorn%2Fauto-identity-remove%2Fmain%2Fdata%2Fbroker-health.json&query=%24.summary.total&label=brokers%20checked&cacheSeconds=3600)](STATUS.md)
 
 Automated data broker opt-out runner for macOS, Linux, and Windows. Removes your personal information from **500+ people-search sites and data broker databases** on a monthly schedule - with CAPTCHA solving, persistent state tracking (so completed opt-outs aren't resubmitted every run), and an iMessage notification when done. [**Privacy & data flow ->**](docs/PRIVACY.md)
 
@@ -19,13 +21,14 @@ Each month, the script:
 Beyond the monthly run, it can also:
 
 - **Score your exposure** - a single 0-100 number with a month-over-month trend (`aidr score`), built from verified removals, search-engine visibility, and breach data
+- **Look before you submit** - see where you are actually listed (`aidr scan`) and submit only there (`aidr run --found-only`)
 - **Close the loop** - re-verify removals (`aidr verify`), watch search engines for new listings (`aidr serp-watch`), and generate a monthly PDF report (`aidr report`)
 - **Add teeth** - send CCPA/GDPR right-to-know requests (`aidr know`) and auto-generate regulator complaints when a broker blows the legal deadline (`aidr complaints`)
 - **Protect proactively** - check Have I Been Pwned (`aidr breach`) and walk a credit/identity-freeze checklist (`aidr freeze`)
 - **Stay private** - submit from a masked relay email (SimpleLogin), encrypt `config.json` at rest (AES-256-GCM, opt-in via `AIDR_PASSPHRASE`), and detect success/confirmation text in 6 languages
 - **Run from a browser** - an optional local web dashboard with a first-run config wizard, live run console, status board and a **History** tab of past runs (`aidr dashboard`)
 - **Stay in control of the job** - solve the CAPTCHAs a solver cannot (`aidr captchas`), check and remove the monthly job (`aidr schedule`), resume a killed run, check your config (`aidr config check`) and purge old PII files (`aidr purge`)
-- **Keep coverage fresh** - pull the broker list from the official California (SB 362) and Vermont registries (`aidr update-brokers`), and keep brokers you *want* to stay listed on via an allowlist
+- **Keep coverage fresh** - pull the broker list from the California Privacy Protection Agency's current data broker registry (`aidr update-brokers`; Vermont no longer offers a file export, and Texas and Oregon have none), and keep brokers you *want* to stay listed on via an allowlist
 
 ---
 
@@ -116,6 +119,7 @@ maps to an existing entrypoint:
 | `aidr preview` | Dry-run: fills forms but submits nothing |
 | `aidr run` | Runs the opt-out pass for real |
 | `aidr captchas` | Re-runs only the brokers that ended on a CAPTCHA last time, in a visible browser, so you can solve them |
+| `aidr scan` | Searches every broker that can be searched and records where you are listed. Submits nothing |
 | `aidr verify` | Re-searches brokers and reports whether you still appear |
 | `aidr score` | Prints your 0-100 exposure score and its month-over-month trend |
 | `aidr report` | Generates the monthly PDF + emails the summary |
@@ -125,8 +129,9 @@ maps to an existing entrypoint:
 | `aidr breach` | Checks Have I Been Pwned and recommends a credit freeze on high-severity breaches |
 | `aidr freeze` | Shows the credit/identity-freeze checklist and its status |
 | `aidr complaints` | Generates regulator complaints for brokers past the CCPA/GDPR deadline |
+| `aidr drop` | California: shows how to file your DROP request, records when you did (`--done`, `--on DATE`, `--person NAME`, `--clear`), and skips the brokers it covers |
 | `aidr know` | Sends CCPA/GDPR right-to-know requests |
-| `aidr update-brokers` | Refreshes the broker list from the CA + Vermont registries |
+| `aidr update-brokers` | Refreshes the broker list from the current California registry |
 | `aidr list` | Lists configured brokers and their last-known status |
 | `aidr doctor` | Self-diagnoses your environment and configuration |
 | `aidr config check` | Checks `config.json`, the passphrase source and where state lives; exits 1 on a problem |
@@ -145,6 +150,52 @@ verb (`aidr schedule remove`) stops with the list of real ones before anything r
 
 > A native desktop wrapper (Electron/Tauri) is a planned follow-up and is **not**
 > included here - this release is clean CLI packaging only.
+
+### See which of your details go to which broker
+
+```
+aidr preview --fields
+```
+
+fills each form without sending it and prints, per broker, the form fields it typed into and
+which of your details went in each. It prints the NAME of the detail, never the value:
+
+```
+   fields for FastPeopleSearch:
+     optout_name <- full name
+     email <- masked email
+```
+
+The names are `first name`, `last name`, `full name`, `email` (`masked email` when your
+email relay supplies an alias), `phone`, `city`, `state` and `ZIP`. A field that gets a fixed
+choice, such as a dropdown option, shows `fixed text`. `unmapped` means the tool could not work
+out which detail a field carries; treat it as "unknown", not as "harmless".
+
+At the end of the run one table lists, for each broker, the set of details it would receive,
+then how many brokers would receive each detail (for example `phone: 12 of 140`). A broker whose
+form was not reached, or had no fillable form, is not in the table because nothing was typed.
+For the generic pass only a form that is already on the page is previewed; a form that opens
+after clicking a "Do Not Sell" link is not.
+
+Nothing printed contains a value unless you add `--show-values`, which also prints each value
+after its field on standard output (it is not written to the run log file, but anything that
+captures the terminal, such as `docker logs`, will see it). Use it to check a selector before a
+real run, and do not share that output.
+
+**What a preview itself does.** `--fields` is not "nothing leaves my machine". A preview still
+visits sites:
+
+- **Search steps run.** For a broker that searches first, the search page is loaded, and your name
+  (usually with your state) is in that URL. The table marks these as `search: full name, state`
+  and counts them in the totals.
+- **Explicit brokers' forms are filled in the page, not submitted.** The preview types your details
+  into the form fields of the brokers listed in `brokers.js` and stops before the submit click.
+  A script on such a page can read what is typed.
+- **Generic brokers' forms are not touched.** For the generic pass the tool works out what it
+  would type and types nothing, clicks nothing and submits nothing, so those pages see only a visit.
+
+The audit report written after a real run lists the same detail names for each broker
+(`details typed: first name, email`), never values, whatever flags you used.
 
 ---
 
@@ -182,6 +233,36 @@ Some opt-out forms have reCAPTCHA. Without CapSolver, those sites go to your man
 > **CapSolver is optional.** Without it, CAPTCHA-protected sites are flagged as
 > manual and opened in your browser for completion. Pass `--no-capsolver` to skip
 > them entirely rather than opening the browser.
+
+### Capping what CapSolver can spend
+
+Every solve is paid for, so a run can be given a ceiling:
+
+```json
+"capsolver": {
+  "apiKey": "CAP-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+  "maxSolvesPerRun": 25
+}
+```
+
+- `maxSolvesPerRun` is a whole number of 1 or more. Leave it out for no cap.
+- A solve counts when a paid task is created with CapSolver, whether or not it
+  then succeeds. Dry runs and previews never solve, so they never count.
+- One count covers the whole run: the explicit brokers, the 500+ generic brokers
+  and every person in a multi-person config.
+- When the cap is used up the solver is not called again. If you are at a visible
+  browser with manual solving on, you are asked as usual. Otherwise the broker is
+  recorded `captcha_failed` with the reason "solve cap reached (25 of 25 used)",
+  and `aidr captchas` picks it up afterwards.
+- Anything that is not a whole number of 1 or more (0, a negative, a fraction, a
+  string) is reported by `aidr config check` and at the start of a run, and the
+  run then allows no paid solve at all.
+- The run summary prints how many solves were used and the cap. The spend is the
+  difference between your CapSolver balance read before the first solve and again
+  at the end, so it follows whatever CapSolver charges today. If the balance
+  cannot be read, only the count is shown and the spend is reported as unknown.
+  The count and the spend are also written into the run log (`solves`) and the
+  end line of the journal.
 
 ### Solving CAPTCHAs yourself
 
@@ -548,13 +629,19 @@ your whole history; `aidr config check` reports it and tells you how to fix the 
 
 > **Submitted ≠ confirmed deleted.** Use `node watcher.js --verify` for spot-check verification. See [STATUS.md](STATUS.md) for a per-broker confidence table.
 
+## Broker health
+
+[STATUS.md](STATUS.md) shows, for every explicit broker, whether its opt-out page still answers and still has the form the definition expects. A weekly GitHub Actions job loads each page with a plain headless browser (no personal data, nothing typed or submitted) and rewrites `data/broker-health.json`; the badges at the top read their numbers from that file, so this page needs no edit when they change. A broker that is `drifted` twice in a row gets an issue titled `Broker drift: <name>`; close one as known with the `wontfix` label and it stays closed.
+
+The labels are `ok` (every selector matches a visible element; for a `manual` broker the page only has to answer, its form is not checked), `drifted` (a selector the definition relies on matches nothing visible, or the page ended up on another site), `blocked` (a bot wall, or a CAPTCHA with not one selector visible: the real page was not seen, so it is never called drifted), `dead` (gone or unresolvable) and `error` (a timeout or server error; shown, never an issue). The check looks at the shape of the form, not at whether a submission deletes anything, and a data centre address is refused by some sites, so run `aidr doctor --brokers` to repeat the check from your own connection. It prints one line per broker and writes nothing.
+
 ## How confident should I be?
 
 This tool covers 500+ data brokers in two tiers:
 
 | Tier | Count | Confidence |
 |---|---|---|
-| **Explicit brokers** ([STATUS.md](STATUS.md)) | 51 | Hand-mapped with specific selectors. **None are currently marked `verified`** - the selectors compile and were correct when written, but none has been re-tested against the live site recently, so any of them may have drifted. |
+| **Explicit brokers** ([STATUS.md](STATUS.md)) | 48 | Hand-mapped with specific selectors. **None are currently marked `verified`** - the selectors compile and were correct when written, but none has been re-tested against the live site recently, so any of them may have drifted. |
 | **Generic runner** | ~490 | Best-effort heuristic - tries 4 strategies (Do Not Sell click, OneTrust/TrustArc, generic form, DSAR link). Many succeed; some fail silently. |
 
 Be skeptical of the counts this tool prints. Broker sites change their DOM
@@ -581,7 +668,6 @@ If you want to know exactly which brokers are hand-verified vs heuristic, see [S
 | FastPeopleSearch | Search → opt-out form |
 | TruePeopleSearch | Direct opt-out form |
 | BeenVerified | Opt-out search form |
-| Radaris | Search → privacy form |
 | Intelius | Direct opt-out form |
 | PeopleFinders | Direct opt-out form |
 | PeopleSmart | Direct opt-out form |
@@ -590,7 +676,7 @@ If you want to know exactly which brokers are hand-verified vs heuristic, see [S
 | FamilyTreeNow | Direct opt-out form |
 | CheckPeople | Direct opt-out form |
 | ThatsThem | Direct opt-out form |
-| USPhonebook | Direct opt-out form |
+| USPhonebook | Direct opt-out form (also searchable by `aidr scan`) |
 | SmartBackgroundChecks | Direct opt-out form |
 | SearchPeopleFree | Direct opt-out form |
 | PeopleSearchNow | Direct opt-out form |
@@ -703,7 +789,7 @@ form brokers, the **email** brokers and the 500+ **generic** brokers. Names are
 case-insensitive. Together they **narrow** each other: a broker runs when it is
 named by `--only`, is in the `--retry-failed` set, and is not named by `--skip`
 (`--skip` always wins, so `--retry-failed --skip A` leaves A out). `--only` and
-`--skip` also apply to `--pollute`, `--know`, `--verify`, `--serp-scan` and
+`--skip` also apply to `--pollute`, `--know`, `--verify`, `--scan`, `--serp-scan` and
 `--serp-watch`; `--retry-failed` reads a run log that those modes do not use, so it
 is refused with them. `--retry-failed` re-runs what the last run log recorded as an
 error, a CAPTCHA failure, awaiting an email confirmation, or *unconfirmed* (the
@@ -782,23 +868,128 @@ Re-search the brokers to see whether previous opt-outs are still in effect:
 node watcher.js --verify
 ```
 
-This opens a browser and, for each broker where a submission was recorded at least 7 days ago, searches for your listing. No forms are submitted. It **does** write to `state.json`: each checked entry gets `verifiedDeletedAt` (not found) or `verifiedStillListedAt` (found) plus a short `verifyHistory`, which is what `aidr report`, `aidr score` and `aidr complaints` read. It writes no report file; the result is printed to the console only.
+This opens a browser and, for each broker where a submission was recorded at least 7 days ago, searches for your listing. No forms are submitted. It **does** write to `state.json`: each checked entry gets `verifiedDeletedAt` (gone after a listing was seen), `verifiedAbsentAt` (not found, and no listing was ever seen) or `verifiedStillListedAt` (found) plus a short `verifyHistory`, which is what `aidr report`, `aidr score` and `aidr complaints` read. It writes no report file; the result is printed to the console only.
 
 The console shows a count for each outcome, then lists every broker that is still listed:
 
 | Outcome | Meaning |
 |---------|---------|
-| `verified_clear` | Your name was not found in the broker's search today |
+| `verified_clear` | A listing was seen before (by `aidr scan` or an earlier verify) and your name is not in the broker's search today: a removal |
+| `never_seen` | Your name is not in the broker's search today, but no listing was ever seen there, so nothing was proved removed. It is not counted as a removal, as exposure, or as "unverified" |
 | `still_listed` | A listing was found - the opt-out may have failed, or your data was re-added |
-| `unverifiable` | The broker uses a direct-form, email, or manual method (no automated search signal exists), or its search page could not be read |
+| `unverifiable` | The broker has no search step (email, manual, or a form with no search page), or its search page could not be read |
 | `skipped` | Nothing to check yet: no recorded submission, submitted fewer than 7 days ago, already verified since the last submission, or allowlisted |
 
 **Important caveats:**
 
-- Only `search-form` brokers (those with a `searchUrl` and `listingPattern`) can be checked automatically. Direct-form and email opt-outs are always `unverifiable`.
+- Only brokers with a search step (a `searchUrl` and a `listingPattern`, whatever their opt-out method) can be checked automatically. Email opt-outs and brokers with no search step are always `unverifiable`.
+- A removal counts as verified only when a listing was seen before and is gone after. State written by older versions keeps working: an entry whose `verifiedDeletedAt` is newer than its last submission is still counted as a removal (older versions wrote it for any empty search page, and there is no way to tell which ones were real, so nothing is re-labelled). From now on an empty search page with no recorded sighting is `never_seen` instead.
 - "Verified clear" means your name was not found in one search today. It is **not** a legal guarantee of deletion. Brokers routinely re-ingest data from upstream sources.
 - "Still listed" can mean the opt-out failed **or** the broker re-added your data since the last successful opt-out was recorded. Either way, re-running `node watcher.js` will attempt removal again.
 - If the broker's search page is down or slow, the result is classified as `unverifiable` (a timeout is not counted as "still listed").
+
+### Looking before you submit (`aidr scan`, `aidr run --found-only`)
+
+A normal run submits an opt-out to every broker whether or not it holds a listing
+for you. `aidr scan` finds out first:
+
+```bash
+aidr scan                       # every broker that can be searched, for each person
+aidr scan --only Spokeo,USPhonebook
+aidr run --found-only           # submit only where the scan found you
+```
+
+`aidr scan` searches each broker that has a search step (a `searchUrl` and a
+`listingPattern`, whatever its opt-out method), for each person, in that person's own
+browser profile. **It submits nothing and sends no email.** It prints where you were
+found, where you were not, where it could not tell (with the reason), and how many brokers
+cannot be searched. A listing address carries your name in its path, and output is often
+captured to a log, so on an interactive terminal it prints the full URL and anywhere else (cron,
+launchd, docker, a redirect) only the host, with one line saying the full URLs are in
+`state.json`. `--only` and `--skip` apply. It exits 2
+when it could not tell anywhere (every search failed, for instance offline), so a scheduled
+scan that learned nothing does not look like a clean one.
+
+The latest result for each person and broker is saved in `state.json` under `scans`
+(keyed like the opt-outs), with a short history:
+
+| Result | Meaning |
+|--------|---------|
+| `found` | The search page showed a listing. The URL is kept and the search page is screenshotted into the snapshots directory (private permissions, and removed by `aidr purge` like the others) |
+| `not_found` | The search page loaded and showed no listing. `aidr scan` files it under "Where you were not found" only for a broker whose search step was validated live (`searchCheckedAt` in `brokers.js`); for the others it prints "No listing seen, but this site's search is not validated", because a site whose result links stopped matching would give the same empty answer on a normal results page |
+| `unknown` | **Could not tell**: a bot wall, a failed navigation, a non-2xx answer, a browser that would not start. This is never recorded as `not_found` |
+
+Each record also carries `sh`, a one-way hash of the exact search address that was
+searched (never the address itself: it holds your name). `--found-only` trusts a record only
+when its hash is your current search at that broker, so fixing a wrong state or a full name
+in `config.json` makes every older result count as never scanned instead of leaving the old
+"not listed" in force for 30 days. A record from an older version has no hash and counts the
+same way. A search whose details are blank (no full name, no state) is not made: it is
+recorded as could not tell, with the missing detail named, never as not found.
+
+`aidr run --found-only` runs the normal opt-out pass, narrowed by the scan:
+
+- A broker the latest scan says is `found` is submitted. One it says is `not_found` is
+  skipped, and the run log says why ("not listed (scan of 2026-11-17)"), but only when that
+  broker's search step was validated live. A `found` from any searchable broker is used.
+- A listing seen inside `scan.maxAgeDays` is not forgotten because a LATER scan could not tell
+  (a bot wall) or came back empty from a search that is not validated: the broker is still
+  treated as found. Only a later `not_found` from a validated search overrides a sighting.
+- A scan dated more than a day in the future (a wrong clock) is unusable and says so.
+- A broker whose scan is `unknown`, older than `scan.maxAgeDays`, missing (or made for
+  different details), that cannot be searched at all, or whose empty result comes from a
+  search step that was never validated follows `scan.unknown`: `submit` (the default) or
+  `skip`. A skip is logged with its reason.
+- An email opt-out follows the decision for a searchable entry of the same company (same
+  registrable domain as the address's domain or the entry's pages, else the name before
+  " (email)"): the Spokeo email is not sent while the Spokeo form is skipped as not listed.
+  With several such entries any submit wins. Email entries with no searchable entry for their
+  company (Hiya, Eyecon, Pipl) and the ~490 generic brokers cannot be searched, so they follow
+  `scan.unknown`. With `skip` the run says in one line that the generic brokers were left out
+  and why; with `submit` they run as before.
+- Before the opt-out pass it prints one line per person: how many brokers the scan says you
+  are listed at (submitted), how many it says you are not (skipped), and why every other
+  broker is being submitted or skipped (scan too old, could not tell, never scanned, search not
+  validated, cannot be searched). A person with no usable result is told so, and told to run
+  `aidr scan` again.
+- If NO person has a usable result (none recorded, or every one is too old, could not tell, or
+  was made for different details), `--found-only` refuses to start and tells you to run
+  `aidr scan` first: otherwise it would be a full run that only looks filtered.
+- It combines with `--only`, `--skip` and `--retry-failed` (each narrows the list
+  further) and `--dry-run`. It is refused with `--resume` (a checkpoint is a
+  position in the full list), `--captchas` (which picks its own brokers) and `--pollute`
+  (noise goes to every broker that accepts it, whatever the scan found), and with every other
+  mode (each is its own command, not the opt-out run it narrows). `--scan` and `--verify`
+  search and submit nothing, so they refuse `--pollute`, `--resume`, `--solve-captchas`,
+  `--snapshot` and `--fields` instead of ignoring them. Like any
+  filtered run it marks its log as partial and leaves the resume checkpoint alone.
+
+```json
+"scan": { "unknown": "submit", "maxAgeDays": 30 }
+```
+
+`scan.unknown` is `submit` or `skip`; `scan.maxAgeDays` is a whole number of 1 or more.
+A wrong value is a config problem (`aidr config check` reports it), because a mistyped
+`skip` would otherwise quietly mean `submit`.
+
+An ordinary run also notes the listing it finds when it searches a broker before
+submitting. That sighting counts as evidence for `aidr verify` but does not count as a
+scan for `--found-only`.
+
+**Evidence-backed removal.** A removal is verified only when a listing was seen before
+(by a scan, a run's own search or an earlier verify) and is gone after. For a broker whose
+opt-out starts with the search (method `search-form`, such as Spokeo) a recorded submission is
+itself a sighting, because the run only submits after its own search found a listing: state
+from before scans existed still counts. A broker that merely has a search step but submits
+without looking (USPhonebook) does not get that credit. If `aidr verify`
+finds an empty search page and no listing was ever seen, it reports `never seen`, which
+is not counted as a removal in the exposure score, the monthly report or the complaints.
+
+A sighting that is NEWER than a "found nothing" check wins: if `aidr verify` saw an empty page on
+day 8 and `aidr scan` found the listing on day 18, the score counts it as listed, the report
+lists it as listed (not under "Never seen"), and `aidr verify` searches it again instead of
+skipping it as already found absent. A scan that finds a listing for someone with no opt-out
+history yet also counts as listed in the score.
 
 ### Continuous SERP monitoring (`--serp-watch`)
 
@@ -833,13 +1024,18 @@ Only brokers tagged `acceptsBogus: true` in `brokers.js` will receive noise subm
 
 ### Refreshing the broker list (`--update-brokers`)
 
-The bundled Markup dataset is from January 2023 and is increasingly stale. Refresh the broker coverage from the official, auto-updating state data-broker registries:
+The bundled Markup dataset is from January 2023 and is increasingly stale. Refresh the broker coverage from the state data-broker registries that publish a file:
 
 ```bash
 node watcher.js --update-brokers
 ```
 
-This fetches the California (SB-362) and Vermont registries over HTTP (no browser is launched), normalizes each entry, dedups it by hostname against the explicit brokers in `brokers.js`, and writes `data/feeds-brokers.json`. The generic runner loads that file alongside the Markup dataset on the next run; the Markup data stays as the fallback, so a failed or skipped refresh never reduces coverage. Override the registry URLs with the `CA_REGISTRY_URL` / `VT_REGISTRY_URL` environment variables if the official endpoints move.
+This reads the California Privacy Protection Agency's current data broker registry over HTTP (no browser is launched), normalizes each entry (preferring the registry's consumer-rights page as the opt-out URL when it is a single http(s) address, otherwise the primary website), dedups it by company against the explicit brokers in `brokers.js`, and writes `data/feeds-brokers.json`. A company is the registrable domain of its primary website, so several brokers whose rights pages share one form platform (a OneTrust portal, a Google Form) stay separate rows. Each broker records which registries list it (`registries`), and the file keeps a `registryHosts` map of the registrable domain of each broker's primary website (never a rights-page host, a shared form platform or a bare suffix like `co.uk`) to the registries that list it, plus a `registries` block with each registry's broker count. The command prints one line per registry with its count or its failure. A registry that fails (an HTML page, an error status, no rows, a file cut off by an unclosed quote, a list under half the size of the earlier one, or, from the official California URL, fewer than 100 brokers) is reported as failed and its rows from the earlier run are kept, with their date; the command exits non-zero only when every registry failed. Other states:
+
+- **Vermont** no longer offers a file export, so it is skipped with a one-line note. Set `VT_REGISTRY_URL` to a CSV of your own to read it.
+- **Texas and Oregon** run their registries as web applications only, with no CSV, spreadsheet or JSON export, so they are not read.
+
+The generic runner loads the file alongside the Markup dataset on the next run; the Markup data stays as the fallback, so a failed or skipped refresh never reduces coverage. Override the California URL with `CA_REGISTRY_URL` if the official endpoint moves.
 
 ---
 
@@ -993,7 +1189,7 @@ This tool supports non-US users with a few important caveats.
 - Phone numbers for non-US users are stored verbatim - no `(xxx) xxx-xxxx` reformatting is applied.
 - `lib/forms.js` automatically tries province/postal/postcode HTML field variants (e.g. `input[name*="province"]`, `input[name*="postcode"]`) when filling forms for non-US users, with no change needed in broker definitions.
 - A country `<select>` on opt-out forms is targeted and filled with your 2-letter country code when present.
-- Global brokers (ZoomInfo, Clearbit, Acxiom, Radaris, etc.) are attempted for all users.
+- Global brokers (ZoomInfo, Clearbit, Acxiom, etc.) are attempted for all users.
 
 ### US-only brokers (automatically skipped for non-US users)
 
@@ -1033,21 +1229,84 @@ That said: if you're in a situation where even confirming your email address to 
 
 ---
 
-### California residents: DROP delete portal (SB 362)
+### California residents: DROP, the one-request deletion (SB 362)
 
-California's Delete Request and Opt-out Platform (DROP), established by SB 362,
-will eventually let residents submit a single deletion request that all
-California-registered data brokers must honor. The platform is operated by the
-California Privacy Protection Agency (CPPA).
+California's Delete Request and Opt-out Platform (DROP) is **live**. It is run by the
+California Privacy Protection Agency (branded CalPrivacy) and lets a California resident
+send one deletion request that every registered data broker must honor. It has been open
+to consumers since 2026-01-01, and registered brokers have had to access it since
+2026-08-01. The registry lists several hundred brokers; `aidr drop` prints the current
+count once `aidr update-brokers` has run.
 
-**Status as of late 2025: not yet live.** The broker-side compliance deadline
-in SB 362 is August 1, 2026. CPPA has missed several preceding milestones and
-ongoing litigation (Data Brokers Association v. Bonta) may further delay things.
+- Start at https://consumer.drop.privacy.ca.gov (the information page is https://privacy.ca.gov/drop/).
+- It verifies that you live in California through the California Identity Gateway (Socure or
+  Login.gov), and asks for your name, date of birth and email. Phone, ZIP code, mobile ad ID,
+  vehicle VIN and device ID are optional. One request covers one person.
+- You can amend or cancel a request no sooner than 45 days after you submit it.
+- The clock, Cal. Civ. Code 1798.99.86(c)(1): a broker must access the platform at least once
+  every 45 days and, within 45 days after receiving your request, delete your data. So a broker
+  can take up to 90 days from your submission (up to 45 to pick the request up, then up to 45
+  to delete). For a request submitted before 2026-08-01 the clock starts on 2026-08-01. After
+  that, under (d)(1), the broker must keep deleting new data about you at least every 45 days,
+  so one request stays in force.
+- Complaints go through the agency's general CCPA complaint form,
+  https://cppa.ca.gov/webapplications/complaint . There is no DROP-specific form.
 
-See: https://cppa.ca.gov/data_broker_registry/
+Identity verification means DROP cannot be automated, and aidr does not try. What it does is
+described under [`aidr drop`](#aidr-drop-record-your-california-drop-request) below.
 
-Until DROP is live, this tool falls back to per-broker opt-out flows for
-California-registered brokers.
+#### `aidr drop`: record your California DROP request
+
+```
+aidr drop                          # what DROP is, the URL, and where your request stands
+aidr drop --done                   # you submitted it today: record it
+aidr drop --done --on 2026-09-01   # you submitted it on another day (not in the future, not before 2026-01-01)
+aidr drop --done --person "Jane Sample"   # only this person, when config.json lists several
+aidr drop --clear                  # remove the record (works even if you no longer live in California)
+```
+
+Days are your machine's local calendar days, so `--done` at 17:30 Pacific records that day, not
+the next UTC date. `--done` on a request that is already recorded changes nothing and says which
+date is recorded (the 90-day clock hangs on it); `--done --on DATE` replaces it. When
+`config.json` lists more than one California resident, `--done` and `--clear` need `--person`
+so one person's request is never recorded for another. If `--person` matches two configured
+people with the same name, it refuses and says what tells them apart (email, zip code), because
+the record is kept per name: give one of them a different first or last name. A record carries
+the same identity fingerprint as the rest of the state, so a namesake or a replaced person does
+not inherit it.
+
+For each California person (state `CA` or `California`, country US or unset) it prints what
+DROP is, the URL, what the platform asks for, and one of: *not recorded yet*, *submitted on
+DATE and brokers have until DEADLINE*, or *the window passed on DATE*. It also says how many
+registry brokers it knows (counted from the registry's own broker count, not from domains); with
+none known it tells you to run `aidr update-brokers`. A person
+outside California is told DROP is for California residents and nothing changes.
+
+Once a request is recorded:
+
+- The generic pass does not visit a broker that is on the California registry, so fewer companies
+  receive your details. A broker counts as on the registry when its row came from the registry
+  feed, or when its own website is the primary website of a registry broker; a page on a shared
+  form platform (a OneTrust portal, a Google Form) never counts by its host. Each covered row is
+  logged as skipped ("covered by your DROP request of DATE") and the run summary counts them. This needs the registry list from `aidr update-brokers`; with
+  a recorded request and no list the run says so.
+- The explicit brokers in `brokers.js` (the people-search sites) still run: their listings are
+  public and a form is often faster.
+- After the deadline, `aidr complaints` can draft a complaint to the California agency for a
+  registry broker, but only when `aidr verify` saw you still listed after the deadline. It never
+  files from the age of a request alone.
+- `aidr score` shows how many registry brokers your request covers on a separate line. That is not
+  counted as a removal: a broker you have not checked is never treated as verified gone.
+
+To keep submitting to those brokers as well, set `"drop": { "alsoSubmit": true }` in `config.json`.
+A mistyped `drop` block (for example `"alsoSubmit": "true"`) turns the skipping off for that run, so
+every broker is submitted, and the run prints the config warning once at the start.
+
+After a request is recorded, the `CalPrivacy DROP` entry is listed as done with its date instead of
+as a to-do. A complaint treats a listing as seen after the deadline only from 08:00 UTC on the day
+after it (past midnight in California in both standard and daylight time).
+
+A real run for a California person with no recorded request prints one line pointing at `aidr drop`.
 
 ---
 
