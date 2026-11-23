@@ -1,0 +1,358 @@
+{
+  "checkedAt": "2026-11-23T16:34:21.165Z",
+  "runner": "ci",
+  "summary": {
+    "ok": 12,
+    "drifted": 10,
+    "blocked": 21,
+    "dead": 0,
+    "error": 1,
+    "na": 4,
+    "total": 44
+  },
+  "results": {
+    "Spokeo": {
+      "status": "blocked",
+      "detail": "HTTP 403: the site refused this address",
+      "checkedAt": "2026-11-23T16:32:02.426Z",
+      "previousStatus": null
+    },
+    "WhitePages": {
+      "status": "blocked",
+      "detail": "HTTP 403: the site refused this address",
+      "checkedAt": "2026-11-23T16:32:06.295Z",
+      "previousStatus": null
+    },
+    "FastPeopleSearch": {
+      "status": "blocked",
+      "detail": "HTTP 403: the site refused this address",
+      "checkedAt": "2026-11-23T16:32:10.155Z",
+      "previousStatus": null
+    },
+    "TruePeopleSearch": {
+      "status": "blocked",
+      "detail": "HTTP 403: the site refused this address",
+      "checkedAt": "2026-11-23T16:32:14.077Z",
+      "previousStatus": null
+    },
+    "BeenVerified": {
+      "status": "blocked",
+      "detail": "HTTP 403: the site refused this address",
+      "checkedAt": "2026-11-23T16:32:17.951Z",
+      "previousStatus": null
+    },
+    "Intelius": {
+      "status": "blocked",
+      "detail": "HTTP 403: the site refused this address",
+      "checkedAt": "2026-11-23T16:32:21.820Z",
+      "previousStatus": null
+    },
+    "PeopleFinders": {
+      "status": "blocked",
+      "detail": "HTTP 403: the site refused this address",
+      "checkedAt": "2026-11-23T16:32:25.700Z",
+      "previousStatus": null
+    },
+    "PeopleSmart": {
+      "status": "drifted",
+      "detail": "5 of 5 selectors match nothing visible: input[name=\"firstName\"] | input[name=\"lastName\"] | input[type=\"email\"] | select[name=\"state\"] | button[type=\"submit\"]",
+      "checkedAt": "2026-11-23T16:32:30.109Z",
+      "previousStatus": null,
+      "missing": [
+        "input[name=\"firstName\"]",
+        "input[name=\"lastName\"]",
+        "input[type=\"email\"]",
+        "select[name=\"state\"]",
+        "button[type=\"submit\"]"
+      ]
+    },
+    "MyLife": {
+      "status": "blocked",
+      "detail": "HTTP 403: the site refused this address",
+      "checkedAt": "2026-11-23T16:32:33.976Z",
+      "previousStatus": null
+    },
+    "Nuwber": {
+      "status": "blocked",
+      "detail": "HTTP 403: the site refused this address",
+      "checkedAt": "2026-11-23T16:32:38.169Z",
+      "previousStatus": null
+    },
+    "FamilyTreeNow": {
+      "status": "blocked",
+      "detail": "HTTP 403: the site refused this address",
+      "checkedAt": "2026-11-23T16:32:42.133Z",
+      "previousStatus": null
+    },
+    "CheckPeople": {
+      "status": "drifted",
+      "detail": "3 of 5 selectors match nothing visible: input[name*=\"first\" i] | input[name*=\"last\" i] | select[name*=\"state\" i]",
+      "checkedAt": "2026-11-23T16:32:46.263Z",
+      "previousStatus": null,
+      "missing": [
+        "input[name*=\"first\" i]",
+        "input[name*=\"last\" i]",
+        "select[name*=\"state\" i]"
+      ]
+    },
+    "ThatsThem": {
+      "status": "blocked",
+      "detail": "HTTP 403: the site refused this address",
+      "checkedAt": "2026-11-23T16:32:50.081Z",
+      "previousStatus": null
+    },
+    "USPhonebook": {
+      "status": "ok",
+      "detail": "the page loads and all 5 selectors match, a CAPTCHA is on the page",
+      "checkedAt": "2026-11-23T16:32:51.107Z",
+      "previousStatus": null
+    },
+    "SmartBackgroundChecks": {
+      "status": "blocked",
+      "detail": "HTTP 403: the site refused this address",
+      "checkedAt": "2026-11-23T16:32:54.964Z",
+      "previousStatus": null
+    },
+    "SearchPeopleFree": {
+      "status": "blocked",
+      "detail": "HTTP 403: the site refused this address",
+      "checkedAt": "2026-11-23T16:32:58.804Z",
+      "previousStatus": null
+    },
+    "PeopleSearchNow": {
+      "status": "blocked",
+      "detail": "HTTP 403: the site refused this address",
+      "checkedAt": "2026-11-23T16:33:02.659Z",
+      "previousStatus": null
+    },
+    "InfoTracer": {
+      "status": "drifted",
+      "detail": "4 of 4 selectors match nothing visible: input[name*=\"first\" i] | input[name*=\"last\" i] | input[type=\"email\"] | button[type=\"submit\"]",
+      "checkedAt": "2026-11-23T16:33:06.826Z",
+      "previousStatus": null,
+      "missing": [
+        "input[name*=\"first\" i]",
+        "input[name*=\"last\" i]",
+        "input[type=\"email\"]",
+        "button[type=\"submit\"]"
+      ]
+    },
+    "SocialCatfish": {
+      "status": "drifted",
+      "detail": "1 of 3 selectors match nothing visible: input[name*=\"name\" i]:not([name*=\"first\" i]):not([name*=\"last\" i]):not([name*=\"fname\" i]):not([name*=\"lname\" i]):not([name*=\"surname\" i]):not([name*=\"family\" i]):not([name*=\"given\" i]):not([name*=\"middle\" i]):not([name*=\"user\" i]):not([name*=\"nick\" i]):not([name*=\"company\" i]):not([name*=\"business\" i]):not([name*=\"organi\" i]):not([name*=\"file\" i]):not([name*=\"maiden\" i])",
+      "checkedAt": "2026-11-23T16:33:11.684Z",
+      "previousStatus": null,
+      "missing": [
+        "input[name*=\"name\" i]:not([name*=\"first\" i]):not([name*=\"last\" i]):not([name*=\"fname\" i]):not([name*=\"lname\" i]):not([name*=\"surname\" i]):not([name*=\"family\" i]):not([name*=\"given\" i]):not([name*=\"middle\" i]):not([name*=\"user\" i]):not([name*=\"nick\" i]):not([name*=\"company\" i]):not([name*=\"business\" i]):not([name*=\"organi\" i]):not([name*=\"file\" i]):not([name*=\"maiden\" i])"
+      ]
+    },
+    "NationalPublicData": {
+      "status": "blocked",
+      "detail": "HTTP 403: the site refused this address",
+      "checkedAt": "2026-11-23T16:33:15.613Z",
+      "previousStatus": null
+    },
+    "PrivateRecords": {
+      "status": "drifted",
+      "detail": "2 of 4 selectors match nothing visible: input[name*=\"first\" i] | input[name*=\"last\" i]",
+      "checkedAt": "2026-11-23T16:33:19.880Z",
+      "previousStatus": null,
+      "missing": [
+        "input[name*=\"first\" i]",
+        "input[name*=\"last\" i]"
+      ]
+    },
+    "Acxiom": {
+      "status": "drifted",
+      "detail": "5 of 5 selectors match nothing visible: input[name*=\"first\" i] | input[name*=\"last\" i] | input[type=\"email\"] | input[name*=\"zip\" i] | input[type=\"submit\"],button[type=\"submit\"] (redirected to www.acxiom.com)",
+      "checkedAt": "2026-11-23T16:33:24.721Z",
+      "previousStatus": null,
+      "missing": [
+        "input[name*=\"first\" i]",
+        "input[name*=\"last\" i]",
+        "input[type=\"email\"]",
+        "input[name*=\"zip\" i]",
+        "input[type=\"submit\"],button[type=\"submit\"]"
+      ]
+    },
+    "LexisNexis": {
+      "status": "drifted",
+      "detail": "5 of 5 selectors match nothing visible: input[name*=\"first\" i] | input[name*=\"last\" i] | input[type=\"email\"] | input[name*=\"zip\" i] | button[type=\"submit\"],input[type=\"submit\"] (redirected to consumer.risk.lexisnexis.com)",
+      "checkedAt": "2026-11-23T16:33:28.987Z",
+      "previousStatus": null,
+      "missing": [
+        "input[name*=\"first\" i]",
+        "input[name*=\"last\" i]",
+        "input[type=\"email\"]",
+        "input[name*=\"zip\" i]",
+        "button[type=\"submit\"],input[type=\"submit\"]"
+      ]
+    },
+    "ZoomInfo": {
+      "status": "blocked",
+      "detail": "HTTP 403: the site refused this address",
+      "checkedAt": "2026-11-23T16:33:29.826Z",
+      "previousStatus": null
+    },
+    "Clearbit": {
+      "status": "ok",
+      "detail": "the page answers; a manual broker's form is not checked",
+      "checkedAt": "2026-11-23T16:33:31.165Z",
+      "previousStatus": null
+    },
+    "Andrews Wharton": {
+      "status": "ok",
+      "detail": "the page answers; a manual broker's form is not checked",
+      "checkedAt": "2026-11-23T16:33:32.636Z",
+      "previousStatus": null
+    },
+    "Addresses.com": {
+      "status": "blocked",
+      "detail": "HTTP 403: the site refused this address",
+      "checkedAt": "2026-11-23T16:33:36.489Z",
+      "previousStatus": null
+    },
+    "AnyWho": {
+      "status": "blocked",
+      "detail": "HTTP 403: the site refused this address",
+      "checkedAt": "2026-11-23T16:33:40.310Z",
+      "previousStatus": null
+    },
+    "TruthFinder": {
+      "status": "blocked",
+      "detail": "HTTP 403: the site refused this address",
+      "checkedAt": "2026-11-23T16:33:44.163Z",
+      "previousStatus": null
+    },
+    "InstantCheckmate": {
+      "status": "blocked",
+      "detail": "HTTP 403: the site refused this address",
+      "checkedAt": "2026-11-23T16:33:48.009Z",
+      "previousStatus": null
+    },
+    "Spokeo (email)": {
+      "status": "n/a",
+      "detail": "removal is an email, there is no page to check",
+      "checkedAt": "2026-11-23T16:33:48.759Z",
+      "previousStatus": null
+    },
+    "Epsilon": {
+      "status": "drifted",
+      "detail": "4 of 4 selectors match nothing visible: input[name*=\"first\" i] | input[name*=\"last\" i] | input[type=\"email\"] | button[type=\"submit\"]",
+      "checkedAt": "2026-11-23T16:33:51.928Z",
+      "previousStatus": null,
+      "missing": [
+        "input[name*=\"first\" i]",
+        "input[name*=\"last\" i]",
+        "input[type=\"email\"]",
+        "button[type=\"submit\"]"
+      ]
+    },
+    "Oracle Data Cloud": {
+      "status": "drifted",
+      "detail": "2 of 2 selectors match nothing visible: input[type=\"email\"] | button[type=\"submit\"] (redirected to www.oracle.com)",
+      "checkedAt": "2026-11-23T16:33:56.232Z",
+      "previousStatus": null,
+      "missing": [
+        "input[type=\"email\"]",
+        "button[type=\"submit\"]"
+      ]
+    },
+    "Equifax (marketing)": {
+      "status": "error",
+      "detail": "the page rendered no content, so the form could not be checked",
+      "checkedAt": "2026-11-23T16:34:00.521Z",
+      "previousStatus": null
+    },
+    "Experian (marketing)": {
+      "status": "blocked",
+      "detail": "HTTP 403: the site refused this address",
+      "checkedAt": "2026-11-23T16:34:04.585Z",
+      "previousStatus": null
+    },
+    "DataAxle": {
+      "status": "drifted",
+      "detail": "4 of 5 selectors match nothing visible: input[name*=\"first\" i] | input[name*=\"last\" i] | input[name*=\"zip\" i] | button[type=\"submit\"]",
+      "checkedAt": "2026-11-23T16:34:08.918Z",
+      "previousStatus": null,
+      "missing": [
+        "input[name*=\"first\" i]",
+        "input[name*=\"last\" i]",
+        "input[name*=\"zip\" i]",
+        "button[type=\"submit\"]"
+      ]
+    },
+    "Truecaller": {
+      "status": "ok",
+      "detail": "the page answers; a manual broker's form is not checked",
+      "checkedAt": "2026-11-23T16:34:10.389Z",
+      "previousStatus": null
+    },
+    "Sync.ME": {
+      "status": "ok",
+      "detail": "the page loads and all 4 selectors match",
+      "checkedAt": "2026-11-23T16:34:11.426Z",
+      "previousStatus": null
+    },
+    "CallApp": {
+      "status": "ok",
+      "detail": "the page loads and all 3 selectors match",
+      "checkedAt": "2026-11-23T16:34:12.579Z",
+      "previousStatus": null
+    },
+    "NumLookup": {
+      "status": "ok",
+      "detail": "the page loads and all 2 selectors match, a CAPTCHA is on the page",
+      "checkedAt": "2026-11-23T16:34:13.952Z",
+      "previousStatus": null
+    },
+    "Hiya": {
+      "status": "n/a",
+      "detail": "removal is an email, there is no page to check",
+      "checkedAt": "2026-11-23T16:34:14.703Z",
+      "previousStatus": null
+    },
+    "Eyecon": {
+      "status": "n/a",
+      "detail": "removal is an email, there is no page to check",
+      "checkedAt": "2026-11-23T16:34:14.703Z",
+      "previousStatus": null
+    },
+    "National Do Not Call Registry": {
+      "status": "ok",
+      "detail": "the page answers; a manual broker's form is not checked",
+      "checkedAt": "2026-11-23T16:34:15.017Z",
+      "previousStatus": null
+    },
+    "Spy Dialer": {
+      "status": "ok",
+      "detail": "the page answers; a manual broker's form is not checked, a CAPTCHA is on the page",
+      "checkedAt": "2026-11-23T16:34:16.191Z",
+      "previousStatus": null
+    },
+    "Pipl": {
+      "status": "n/a",
+      "detail": "removal is an email, there is no page to check",
+      "checkedAt": "2026-11-23T16:34:16.943Z",
+      "previousStatus": null
+    },
+    "Google - Results About You": {
+      "status": "ok",
+      "detail": "the page answers; a manual broker's form is not checked",
+      "checkedAt": "2026-11-23T16:34:17.437Z",
+      "previousStatus": null
+    },
+    "Google - Outdated Content": {
+      "status": "ok",
+      "detail": "the page answers; a manual broker's form is not checked",
+      "checkedAt": "2026-11-23T16:34:18.534Z",
+      "previousStatus": null
+    },
+    "CalPrivacy DROP": {
+      "status": "ok",
+      "detail": "the page answers; a manual broker's form is not checked",
+      "checkedAt": "2026-11-23T16:34:20.372Z",
+      "previousStatus": null
+    }
+  }
+}
